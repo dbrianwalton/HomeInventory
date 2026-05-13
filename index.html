@@ -238,6 +238,15 @@
       .error   { color: #b91c1c; }
       .success { color: #15803d; }
 
+      .qr-preview {
+        position: fixed;
+        top: 20px;      /* distance from top */
+        right: 20px;    /* distance from right */
+        z-index: 1000;  /* ensures it stays above other elements */
+        width: 100;
+        height: 100;
+      }
+
       /* -------- Compact Mobile Mode -------- */
       @media (pointer: coarse) {
         body {
