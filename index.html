@@ -374,7 +374,7 @@
       /* ---------- LOADERS ---------- */
 
       function loadInventory(cb) {
-        fetch(`${API_BASE}?action=getAllFoodInstances`)
+        apiFetch(`${API_BASE}?action=getAllFoodInstances`)
           .then(r => r.json())
           .then(data => {
             window._foodInstanceCache = data;
@@ -384,7 +384,7 @@
       }
 
       function loadEvents(cb) {
-        fetch(`${API_BASE}?action=getAllProductionEvents`)
+        apiFetch(`${API_BASE}?action=getAllProductionEvents`)
           .then(r => r.json())
           .then(data => {
             window._eventCache = data;
@@ -394,7 +394,7 @@
       }
 
       function loadStorage(cb) {
-        fetch(`${API_BASE}?action=getAllStorageLocations`)
+        apiFetch(`${API_BASE}?action=getAllStorageLocations`)
           .then(r => r.json())
           .then(data => {
             window._storageLocationCache = data;
@@ -492,7 +492,7 @@
         if (BASE_URL) return Promise.resolve(BASE_URL);
         if (BASE_URL_PROMISE) return BASE_URL_PROMISE;
 
-        BASE_URL_PROMISE = fetch(`${API_BASE}?action=getBaseUrl`)
+        BASE_URL_PROMISE = apiFetch(`${API_BASE}?action=getBaseUrl`)
           .then(r => r.json())
           .then(url => {
             BASE_URL = url;
@@ -752,6 +752,25 @@
         }
 
         document.getElementById('status-controls-chips').innerHTML = chips.join('');
+      }
+
+      /* -------- APIs ----------- */
+
+      function apiFetch(url, options = {}) {
+        return fetch(url, {
+          mode: "cors",
+          redirect: "follow",
+          headers: {
+            "Accept": "application/json"
+          },
+          ...options
+        })
+        .then(res => {
+          if (!res.ok) {
+            throw new Error("Network response was not ok");
+          }
+          return res.json();
+        });
       }
 
       /* -------- MANAGE INVENTORY ---------- */
