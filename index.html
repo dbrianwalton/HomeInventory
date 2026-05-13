@@ -539,7 +539,7 @@
           }
 
           qrScanner.start(
-            cameras[0].id,
+            { facingMode: "environment" },
             { fps: 10, qrbox: 250 },
             onScanSuccess,
             () => {}
