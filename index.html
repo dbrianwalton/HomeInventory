@@ -1,0 +1,1068 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta
+      name="viewport"
+      content="
+        width=device-width,
+        initial-scale=1,
+        minimum-scale=1,
+        maximum-scale=1,
+        user-scalable=no
+      "
+    >
+    <base target="_top">
+    <style>
+      *, *::before, *::after {
+        box-sizing: border-box;
+      }
+
+      html {
+        width: 100%;
+        max-width: 100vw;
+
+        -webkit-text-size-adjust: auto;
+        text-size-adjust: auto;
+      }
+
+      body {
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        margin: 0;
+        padding: 1rem;
+        padding-bottom: 4.5rem;
+
+        /* Responsive text sizing for Apps Script Web App */
+        font-size: clamp(1.05rem, 3.8vw, 1.4rem);
+        line-height: 1.45;
+
+        width: 100%;
+        max-width: 100vw;
+      }
+
+      h1 {
+        font-size: clamp(1.5rem, 4.2vw, 2.1rem);
+      }
+
+      .card {
+        border: 1px solid #ccc;
+        padding: 1rem;
+        border-radius: 8px;
+        margin-bottom: 1rem;
+      }
+
+      button {
+        font-size: 1rem;
+        padding: 0.6rem 0.9rem;
+        border-radius: 8px;
+      }
+
+      #scanBar {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+
+        background: #ffffff;
+        width: 100%;
+        box-sizing: border-box;
+        border-top: 1px solid #ccc;
+
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 1rem;
+
+        padding: 0.6rem 0.8rem;
+        z-index: 100;
+      }
+
+      #scanButton {
+        font-size: 1.1rem;
+        font-weight: 600;
+        padding: 0.7rem 1.2rem;
+      }
+
+      #scanHintText {
+        font-size: 0.9rem;
+        color: #555;
+      }
+
+      .nav-tabs {
+        display: flex;
+        gap: 0.5rem;
+      }
+
+      .nav-tabs button {
+        background: none;
+        border: 1px solid #ccc;
+        border-radius: 8px;
+        padding: 0.4rem 0.75rem;
+        cursor: pointer;
+      }
+
+      .nav-tabs button.active {
+        background: #e5f0ff;
+        border-color: #2563eb;
+        font-weight: 600;
+      }
+
+      .table-wrapper {
+        max-height: calc(100vh - 9rem);
+        overflow-y: auto;
+      }
+
+      .filters-header-row {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+      }
+
+      .filters-toggle {
+        background: none;
+        border: none;
+        padding: 0;
+        font-size: 0.95rem;
+        cursor: pointer;
+        white-space: nowrap;
+        color: #2563eb;
+      }
+
+      .filters-header-row input {
+        flex: 1;          /* ✅ input expands */
+        min-width: 0;     /* ✅ prevents overflow on small screens */
+        font-size: 1.1rem;
+        padding: 0.4rem;
+      }
+
+      .filters-header {
+        display: flex;
+        align-items: center;
+        margin-bottom: 0.4rem;
+      }
+
+      .filters-panel.hidden {
+        display: none;
+      }
+
+      .filters-panel {
+        margin-top: 0.5rem;
+      }
+
+      .filter-row-text input {
+        flex: 1;
+        width: 100%;
+      }
+
+      .filter-row {
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+        margin-bottom: 0.25rem;
+      }
+
+      .filter-label {
+        font-size: 1rem;
+        color: #555;
+        white-space: nowrap;
+      }
+
+      .date-range-sep {
+        color: #777;
+      }
+
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.3rem 0.5rem;
+        background: #e5f0ff;
+        border-radius: 999px;
+        font-size: 0.9rem;
+        line-height: 1;
+      }
+
+      .chip button {
+        background: none;
+        border: none;
+        font-size: 1rem;
+        cursor: pointer;
+      }
+
+      .link-button {
+        background: none;
+        border: none;
+        padding: 0;
+        color: #2563eb;
+        cursor: pointer;
+        font: inherit;
+        text-decoration: underline;
+      }
+
+      .secondary-text {
+        color: #555;
+        font-size: 0.9em;
+      }
+
+      .inventory-table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+
+      .inventory-table th,
+      .inventory-table td {
+        text-align: left;
+        padding: 0.4rem;
+        border-bottom: 1px solid #eee;
+      }
+
+      .inventory-table th {
+        position: sticky;       /* THIS is why the header sticks */
+        top: 0;
+        background: #f9fafb;
+        z-index: 1;
+      }
+
+      .inventory-table tbody tr:nth-child(even) {
+        background-color: #f9fafb;
+      }
+
+      .inventory-table tbody tr:nth-child(odd) {
+        background-color: #ffffff;
+      }
+
+      .inventory-table tbody tr:hover {
+        background-color: #e5f0ff;
+      }
+
+      .warning { color: #b45309; }
+      .error   { color: #b91c1c; }
+      .success { color: #15803d; }
+
+      /* -------- Compact Mobile Mode -------- */
+      @media (pointer: coarse) {
+        body {
+          font-size: max(1.25rem, 18px);
+        }
+
+        .filters-header-row {
+          flex-wrap: wrap;
+        }
+
+        .filters-header-row input {
+          margin-top: 0.3rem;
+        }
+
+        .inventory-table {
+          font-size: max(1.1rem, 16px);
+        }
+
+        .col-desc {
+          font-size: max(1.15rem, 17px);
+        }
+
+        /* Smaller text, tighter rows */
+        .inventory-table th,
+        .inventory-table td {
+          text-align: left;
+          font-size: 0.85rem;
+          padding: 0.3rem;
+        }
+
+        /* Hide non-essential columns */
+        .col-id,
+        .col-keywords,
+        .col-status {
+          display: none;
+        }
+
+        /* Emphasize description */
+        .col-desc {
+          font-weight: 600;
+        }
+
+        /* Make dates easier to scan */
+        .col-packed {
+          white-space: nowrap;
+          color: #374151;
+          font-size: 0.8rem;
+        }
+
+        /* Storage location secondary */
+        .col-storage {
+          font-size: 0.8rem;
+          color: #4b5563;
+        }
+
+        /* Reduce table height slightly on mobile */
+        .table-wrapper {
+          max-height: calc(100vh - 10.5rem);
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <h1 id="app-title">Inventory</h1>
+
+    <div id="nav" class="card nav-tabs">
+      <button id="tab-inventory" onclick="showInventory()">Inventory</button>
+      <button id="tab-events" onclick="showEvents()">Events</button>
+      <button id="tab-storage" onclick="showStorage()">Storage</button>
+    </div>
+
+    <div id="status" class="card">
+      <div id="status-controls"></div>
+      <div id="status-controls-chips"></div>
+      <div id="status-message"></div>
+    </div>
+
+    <div id="assignStatus" class="card" style="display:none;">
+    </div>
+
+    <div id="debug" class="card" style="display:none;"></div>
+
+    <div id="scanner-panel" style="display:none;" class="card">
+      <div id="qr-reader" style="width:100%"></div>
+      <button onclick="stopScanner()">Close Scanner</button>
+    </div>
+
+    <div id="content"></div>
+
+    <div id="scanBar">
+      <button id="scanButton" onclick="startScanner()">Scan</button>
+      <div id="scanHintText"></div>
+    </div>
+
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script>
+      const INITIAL_STATE = getInitialRouteState();
+      const API_BASE = "https://script.google.com/macros/s/AKfycbxMWL4uFCI1rxsxJ8NNWm-fEOsDRVyyQcNEZuRtiGtZAJ24RUr5Jm3DqtYel53NT7g/exec";
+
+      const appSession = {
+        mode: 'NORMAL',
+        activeStorageLocation: null
+      };
+
+      let BASE_URL = null;
+      let BASE_URL_PROMISE = null;
+      let activeTab = 'inventory';
+
+      let inventorySort = {
+        field: 'DateCreated',
+        direction: 'desc'
+      };
+
+      let inventoryFilter = {
+        text: '',
+        dateFrom: null,
+        dateTo: null
+      };
+
+      let filtersExpanded = false;
+
+      let qrScanner = null;
+      let scanLock = false;
+
+      window._foodInstanceCache = null;
+      window._eventCache = null;
+      window._storageLocationCache = null;
+
+      renderApp(INITIAL_STATE);      
+      updateActiveTab();
+
+      /* ---------- LOADERS ---------- */
+
+      function loadInventory(cb) {
+        fetch(`${API_BASE}?action=getAllFoodInstances`)
+          .then(r => r.json())
+          .then(data => {
+            window._foodInstanceCache = data;
+            cb && cb();
+          })
+          .catch(showError);
+      }
+
+      function loadEvents(cb) {
+        fetch(`${API_BASE}?action=getAllProductionEvents`)
+          .then(r => r.json())
+          .then(data => {
+            window._eventCache = data;
+            cb && cb();
+          })
+          .catch(showError);
+      }
+
+      function loadStorage(cb) {
+        fetch(`${API_BASE}?action=getAllStorageLocations`)
+          .then(r => r.json())
+          .then(data => {
+            window._storageLocationCache = data;
+            cb && cb();
+          })
+          .catch(showError);
+      }
+
+      function ensureInventory(cb) {
+        window._foodInstanceCache ? cb() : loadInventory(cb);
+      }
+
+      function ensureEvents(cb) {
+        window._eventCache ? cb() : loadEvents(cb);
+      }
+
+      function ensureStorage(cb) {
+        window._storageLocationCache ? cb() : loadStorage(cb);
+      }
+
+      /* ---------- NAV ---------- */
+
+      function showInventory() {
+        activeTab = 'inventory';
+        updateActiveTab();
+        renderHome();
+      }
+
+      function showEvents() {
+        activeTab = 'events';
+        updateActiveTab();
+        ensureEvents(renderEventList);
+      }
+
+      function showStorage() {
+        activeTab = 'storage';
+        updateActiveTab();
+        ensureStorage(renderStorageList);
+      }
+
+      function handleQRCode(text) {
+        try {
+          const url = new URL(text);
+
+          getBaseUrl().then(base => {
+            const normalizedBase =
+              new URL(base).origin + new URL(base).pathname;
+
+            const normalizedIncoming =
+              url.origin + url.pathname;
+
+            if (!normalizedIncoming.startsWith(normalizedBase)) {
+              showError({ message: "This QR code is not recognized by this app." });
+              return;
+            }
+
+            const type = url.searchParams.get('type');
+            const id = url.searchParams.get('id');
+
+            if (!type || !id) {
+              alert("Invalid QR code.");
+              return;
+            }
+
+            // Route internally
+            renderApp({ type, id });
+          });
+
+        } catch {
+          alert("Invalid QR code.");
+        }
+      }
+
+      function handleAssignmentScan(text) {
+        try {
+          const url = new URL(text);
+
+          const type = url.searchParams.get('type');
+          const id = url.searchParams.get('id');
+
+          if (type !== 'foodInstance') {
+            alert("Scan a food item for assignment.");
+            showAssignmentFeedback("Invalid scan");
+            return;
+          }
+
+          assignFoodInstance(id);
+
+        } catch {
+          alert("Invalid QR code.");
+        }
+      }
+
+      function getBaseUrl() {
+        if (BASE_URL) return Promise.resolve(BASE_URL);
+        if (BASE_URL_PROMISE) return BASE_URL_PROMISE;
+
+        BASE_URL_PROMISE = fetch(`${API_BASE}?action=getBaseUrl`)
+          .then(r => r.json())
+          .then(url => {
+            BASE_URL = url;
+            return url;
+          });
+
+        return BASE_URL_PROMISE;
+      }
+
+      function getInitialRouteState() {
+        // ✅ Support both query and hash formats
+        const params = new URLSearchParams(window.location.search);
+
+        // Optional support for hash routing
+        if (!params.get('type') && window.location.hash) {
+          const [type, id] = window.location.hash.substring(1).split('/');
+          if (type && id) return { type, id };
+        }
+
+        return {
+          type: params.get('type'),
+          id: params.get('id')
+        };
+      }
+
+      /* --------- SCANNING ---------- */
+
+      function startScanner() {
+        if (qrScanner) {
+          stopScanner();   // ✅ prevent duplicate instances
+        }
+
+        scanLock = false;
+
+        document.getElementById('scanner-panel').style.display = 'block';
+        updateScanBar()
+
+        qrScanner = new Html5Qrcode("qr-reader");
+
+        Html5Qrcode.getCameras().then(cameras => {
+          if (!cameras.length) {
+            alert("No camera found");
+            return;
+          }
+
+          qrScanner.start(
+            cameras[0].id,
+            { fps: 10, qrbox: 250 },
+            onScanSuccess,
+            () => {}
+          );
+        });
+      }
+
+      async function stopScanner() {
+        if (qrScanner) {
+          try {
+            await qrScanner.stop();
+            await qrScanner.clear();
+          } catch (e) {
+            console.warn("Scanner stop error", e);
+          }
+          qrScanner = null;
+        }
+
+        document.getElementById('scanner-panel').style.display = 'none';
+        updateScanBar();
+      }
+
+      function onScanSuccess(text) {
+        if (scanLock) return;
+        scanLock = true;
+
+        try {
+          if (appSession.mode === 'ASSIGNMENT') {
+            handleAssignmentScan(text);
+          } else {
+            handleQRCode(text);
+            stopScanner();   // ✅ only STOP in navigation mode
+          }
+        } catch (err) {
+          showError(err);
+        }
+
+        // ✅ Reset lock after short delay
+        setTimeout(() => {
+          scanLock = false;
+        }, 800); // prevents duplicate rapid scans
+      }
+
+      function updateScanBar() {
+        const hint = document.getElementById('scanHintText');
+
+        hint.textContent =
+          appSession.mode === 'ASSIGNMENT'
+            ? 'Scan items to assign to selected storage location'
+            : 'Scan a QR code';
+      }
+
+      /* ------- QR Codes -----------*/
+
+      function toggleQRCode(type, id) {
+        getBaseUrl().then(base => {
+          const url = `${base}?type=${type}&id=${id}`;
+
+          const container = document.getElementById(`qr-code-${id}`);
+          const button = document.getElementById(`qr-btn-${id}`);
+
+          if (!container || !button) return;
+
+          // ✅ If QR already visible → HIDE it
+          if (container.innerHTML.trim()) {
+            container.innerHTML = '';
+            button.textContent = 'Show QR Code';
+            return;
+          }
+
+          // ✅ Otherwise → SHOW it
+          container.innerHTML = `
+            <div style="font-size:0.75em; margin-bottom:6px; word-break:break-all;">
+              ${url}
+            </div>
+          `;
+
+          new QRCode(container, {
+            text: url,
+            width: 200,
+            height: 200,
+            correctLevel: QRCode.CorrectLevel.L
+          });
+
+          button.textContent = 'Hide QR Code';
+        });
+      }
+      
+      /* ---------- HOME ---------- */
+
+      function renderApp(state) {
+        if (state?.type && state?.id) {
+          // Direct navigation path ONLY
+          if (state.type === 'foodInstance') {
+            showFoodInstance(state.id);
+          } else if (state.type === 'storageLocation') {
+            showStorageLocation(state.id);
+          }
+          return;
+        }
+
+        // ONLY render home if no routing params
+        renderHome();
+      }
+
+      function renderHome() {
+        document.getElementById('status-message').innerHTML =
+          '<div><em>Loading inventory…</em></div>';
+
+        ensureInventory(() => {
+          document.getElementById('status-message').innerHTML = '';
+          renderInventory();
+        });
+      }
+
+      /* ---------- FILTER ------------- */
+
+      function renderFilterUI() {
+        document.getElementById('status-controls').innerHTML = `
+          <div class="filters-header-row">
+            <button
+              class="filters-toggle"
+              onclick="toggleFilters()"
+              aria-expanded="${filtersExpanded}"
+            >
+              ${filtersExpanded ? '▾ Filters' : '▸ Filters'}
+            </button>
+
+            <input
+              id="filterInput"
+              type="text"
+              placeholder="Filter by description or keywords"
+              value="${inventoryFilter.text || ''}"
+              oninput="applyFilter()"
+            />
+
+            <button onclick="clearTextFilter()">X</button>
+          </div>
+
+          <div id="filters-panel"
+              class="filters-panel ${filtersExpanded ? '' : 'hidden'}">
+
+            <div class="filter-row">
+              <span class="filter-label">Date:</span>
+              <input type="date" id="dateFrom" onchange="applyDateFilter()" />
+              <span class="date-range-sep">–</span>
+              <input type="date" id="dateTo" onchange="applyDateFilter()" />
+            </div>
+
+          </div>
+        `;
+      }
+
+      function applyFilter() {
+        const input = document.getElementById('filterInput');
+        inventoryFilter.text = input ? input.value.trim().toLowerCase() : '';
+        renderFoodInstanceList();
+      }
+
+      function clearTextFilter() {
+        inventoryFilter.text = '';
+        document.getElementById('filterInput').value = '';
+        renderFoodInstanceList();
+      }
+
+      function applyDateFilter() {
+        const from = document.getElementById('dateFrom');
+        const to = document.getElementById('dateTo');
+
+        inventoryFilter.dateFrom = from?.value
+          ? new Date(from.value + 'T00:00:00')
+          : null;
+
+        inventoryFilter.dateTo = to?.value
+          ? new Date(to.value + 'T23:59:59')
+          : null;
+
+        renderFoodInstanceList();
+      }
+
+      function toggleFilters() {
+        filtersExpanded = !filtersExpanded;
+
+        const panel = document.getElementById('filters-panel');
+        const button = document.querySelector('.filters-toggle');
+
+        panel.classList.toggle('hidden', !filtersExpanded);
+        button.textContent = filtersExpanded ? '▾ Filters' : '▸ Filters';
+      }
+
+      function renderFilterChips() {
+        const chips = [];
+
+        if (inventoryFilter.text) {
+          chips.push(`
+            <span class="chip">
+              ${inventoryFilter.text}
+              <button onclick="clearTextFilter()">✕</button>
+            </span>
+          `);
+        }
+
+        if (inventoryFilter.dateFrom || inventoryFilter.dateTo) {
+          chips.push(`
+            <span class="chip">
+              Date filter
+              <button onclick="clearDateFilter()">✕</button>
+            </span>
+          `);
+        }
+
+        document.getElementById('status-controls-chips').innerHTML = chips.join('');
+      }
+
+      /* -------- MANAGE INVENTORY ---------- */
+      function assignFoodInstance(instanceId) {
+        if (!appSession.activeStorageLocation) {
+          alert("No active storage location");
+          return;
+        }
+
+        fetch(API_BASE, {
+          method: 'POST',
+          body: JSON.stringify({
+            action: 'assignFoodInstance',
+            instanceId,
+            locationId: appSession.activeStorageLocation
+          })
+        })
+        .then(r => r.json())
+        .then(() => {
+          showAssignmentFeedback(instanceId);
+        })
+        .catch(showError);
+      }
+
+      function showAssignmentFeedback(id) {
+        const el = document.getElementById('assignStatus');
+
+        el.style.display = 'block';
+        el.innerHTML = `
+          <div class="success">
+            Assigned ${id}
+          </div>
+        `;
+      }
+
+      function enterAssignmentMode(storageLocationId) {
+        appSession.mode = 'ASSIGNMENT';
+        appSession.activeStorageLocation = storageLocationId;
+
+        startScanner();
+      }
+
+      function exitAssignmentMode() {
+        appSession.mode = 'NORMAL';
+        appSession.activeStorageLocation = null;
+
+        document.getElementById('assignStatus').style.display = 'none';
+
+        stopScanner();
+      }
+
+      /* ---------- INVENTORY ---------- */
+
+      function renderInventory() {
+        renderFilterUI();
+        renderFoodInstanceList();
+      }
+
+      function renderFoodInstanceList() {
+        let working = window._foodInstanceCache || [];
+        
+        // ---- TEXT FILTER ----
+        if (inventoryFilter.text) {
+          const terms = inventoryFilter.text.split(/\s+/);
+
+          working = working.filter(i => {
+            const haystack = [
+              i.Label,
+              ...(i.Keywords || []),
+              i.StorageLocation?.label || '',
+              i.FoodType,
+              i.FoodClassification
+            ].join(' ').toLowerCase();
+
+            return terms.every(t => haystack.includes(t));
+          });
+        }
+
+        // ---- DATE FILTER ----
+        if (inventoryFilter.dateFrom || inventoryFilter.dateTo) {
+          working = working.filter(i => {
+            if (!i.DateCreated) return false;
+
+            const d = new Date(i.DateCreated);
+            if (inventoryFilter.dateFrom && d < inventoryFilter.dateFrom) return false;
+            if (inventoryFilter.dateTo && d > inventoryFilter.dateTo) return false;
+
+            return true;
+          });
+        }
+
+        const sorted = [...working].sort((a, b) => {
+          const at = a.DateCreated ? new Date(a.DateCreated).getTime() : 0;
+          const bt = b.DateCreated ? new Date(b.DateCreated).getTime() : 0;
+          return inventorySort.direction === 'asc' ? at - bt : bt - at;
+        });
+
+        let html = '<div class="card"><div class="table-wrapper"><table class="inventory-table">';
+
+        html += `<thead>
+          <tr>
+            <th onclick="toggleSort()">Date</th>
+            <th>ID</th>
+            <th>Description</th>
+            <th>Storage</th>
+            <th>Status</th>
+          </tr>
+        </thead><tbody>`;
+
+        sorted.forEach(i => {
+          html += `
+            <tr onclick="showFoodInstance('${i.InstanceID}')">
+              <td>${i.DateCreated ? i.DateCreated.substring(0,10) : ''}</td>
+              <td>${i.InstanceID}</td>
+              <td>${i.Label}</td>
+              <td>${i.StorageLocation?.label || ''}</td>
+              <td>${i.Status}</td>
+            </tr>`;
+        });
+
+        html += '</tbody></table></div></div>';
+        document.getElementById('content').innerHTML = html;
+      }
+
+      /* ---------- INSTANCE DETAIL ---------- */
+
+      function showFoodInstance(id) {
+        document.getElementById('status-message').innerHTML =
+          '<div><em>Loading item…</em></div>';
+
+        loadInventory(() => {
+          const item = window._foodInstanceCache.find(i => i.InstanceID === id);
+
+          document.getElementById('status-message').innerHTML = '';
+
+          if (!item) {
+            document.getElementById('content').innerHTML =
+              '<div class="error">Item not found.</div>';
+            return;
+          }
+
+          renderFoodInstanceDetail(item);
+        });
+      }
+
+      function renderFoodInstanceDetail(item) {
+        let html = `<div class="card">
+          <h2>${item.InstanceID}</h2>
+        `;
+
+        html += `
+          <div class="card">
+            <button id="qr-btn-${item.InstanceID}"
+                    onclick="toggleQRCode('foodInstance','${item.InstanceID}')">
+              Show QR Code
+            </button>
+            <div id="qr-code-${item.InstanceID}"></div>
+          </div>
+        `;
+
+        html += `
+          <p><b>Description:</b> ${item.Label}</p>
+          <p><b>Status:</b> ${item.Status}</p>
+        `;
+
+        document.getElementById('content').innerHTML = html;
+      }
+
+      /* ---------- EVENTS ---------- */
+
+      function renderEventList() {
+        const events = window._eventCache;
+
+        let html = '<div class="card"><table class="inventory-table"><tbody>';
+
+        events.forEach(e => {
+          html += `
+            <tr onclick="showEvent('${e.ProductionEventID}')">
+              <td>${e.Description}</td>
+              <td>${e.EventType}</td>
+              <td>${e.Date ? e.Date.substring(0,10) : ''}</td>
+            </tr>`;
+        });
+
+        html += '</tbody></table></div>';
+        document.getElementById('content').innerHTML = html;
+      }
+
+      function showEvent(id) {
+        ensureEvents(() => {
+          const event = window._eventCache.find(e => e.ProductionEventID === id);
+          if (!event) return;
+
+          let html = `<div class="card">
+            <h2>${event.Description}</h2>
+            <p><b>Type:</b> ${event.EventType}</p>
+            <p><b>Date:</b> ${event.Date ? event.Date.substring(0,10) : ''}</p>
+            <p><b>Status:</b> ${event.Status}</p>
+            <p><b>Instances:</b> ${event.FoodInstanceCount}</p>
+          </div>`;
+
+          document.getElementById('content').innerHTML = html;
+        });
+      }
+
+      /* ---------- STORAGE ---------- */
+
+      function renderStorageList() {
+        const storage = window._storageLocationCache;
+
+        let html = '<div class="card"><table class="inventory-table"><tbody>';
+
+        storage.forEach(s => {
+          html += `
+            <tr onclick="showStorageLocation('${s.StorageLocationID}')">
+              <td>${s.StorageLocationID}</td>
+              <td>${s.Label}</td>
+              <td>${s.PhysicalLocation}</td>
+            </tr>`;
+        });
+
+        html += '</tbody></table></div>';
+        document.getElementById('content').innerHTML = html;
+      }
+
+      function showStorageLocation(id) {
+        document.getElementById('status-message').innerHTML =
+          '<div><em>Loading location…</em></div>';
+
+        // ✅ Ensure BOTH caches are ready
+        ensureStorage(() => {
+          ensureInventory(() => {
+            const location = window._storageLocationCache.find(
+              s => s.StorageLocationID === id
+            );
+
+            if (!location) {
+              showError({ message: "Location not found" });
+              return;
+            }
+
+            // ✅ Build related food instances from cache
+            const foodInstances = window._foodInstanceCache.filter(
+              f => f.StorageLocation?.id === id
+            );
+
+            // ✅ Render using same structure as API
+            renderStorageLocation({
+              storageLocation: location,
+              foodInstances: foodInstances
+            });
+
+            document.getElementById('status-message').innerHTML = '';
+          });
+        });
+      }
+
+      function renderStorageLocation(data) {
+        const s = data.storageLocation;
+
+        let html = `<div class="card">
+          <h2>${s?.Label}</h2>
+        `;
+
+        html += `
+          <div class="card">
+            <button id="qr-btn-${s.StorageLocationID}"
+                    onclick="toggleQRCode('storageLocation','${s.StorageLocationID}')">
+              Show QR Code
+            </button>
+            <div id="qr-code-${s.StorageLocationID}" style="margin-top:10px;"></div>
+          </div>
+        `;
+
+        html += `
+          <button onclick="enterAssignmentMode('${s.StorageLocationID}')">
+            Start Assigning Here
+          </button>
+        `;
+
+        html += `<div class="card">`;
+
+        data.foodInstances.forEach(f => {
+          html += `<div>${f.InstanceID} - ${f.Label}</div>`;
+        });
+
+        html += `</div></div>`;
+
+        document.getElementById('content').innerHTML = html;
+      }
+
+
+      /* ---------- MISC ---------- */
+
+      function updateActiveTab() {
+        document.querySelectorAll('.nav-tabs button')
+          .forEach(b => b.classList.remove('active'));
+        document.getElementById(`tab-${activeTab}`)?.classList.add('active');
+      }
+
+      function showError(err) {
+        document.getElementById('status-message').innerHTML =
+          `<div class="error">${err.message}</div>`;
+      }
+
+      function toggleSort() {
+        inventorySort.direction =
+          inventorySort.direction === 'asc' ? 'desc' : 'asc';
+        renderFoodInstanceList();
+      }
+      </script>
+
+  </body>
+</html>
