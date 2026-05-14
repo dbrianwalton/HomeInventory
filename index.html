@@ -41,6 +41,7 @@
 
       h1 {
         font-size: clamp(1.5rem, 4.2vw, 2.1rem);
+        margin-top: 0.5rem;
       }
 
       .card {
@@ -74,6 +75,26 @@
 
         padding: 0.6rem 0.8rem;
         z-index: 100;
+      }
+
+      #cameraButton {
+        position: fixed;
+        top: 0.8rem;
+        right: 0.8rem;
+
+        font-size: 1.5rem;
+        line-height: 1;
+
+        padding: 0.5rem 0.6rem;
+
+        border-radius: 50%;
+        border: 1px solid #ccc;
+        background: #ffffff;
+
+        box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+
+        cursor: pointer;
+        z-index: 200;
       }
 
       #scanButton {
@@ -238,19 +259,18 @@
       .error   { color: #b91c1c; }
       .success { color: #15803d; }
 
-#scanner-panel {
-  position: fixed;
-  top: 20px;
-  right: 20px;
-  z-index: 1000;
+      #scanner-panel {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 1000;
 
-  width: 200px;
-  background: white;
-  border: 1px solid #ccc;
-  padding: 10px;
-  border-radius: 8px;
-}
-
+        width: 200px;
+        background: white;
+        border: 1px solid #ccc;
+        padding: 10px;
+        border-radius: 8px;
+      }
 
       /* -------- Compact Mobile Mode -------- */
       @media (pointer: coarse) {
@@ -318,6 +338,10 @@
   <body>
     <h1 id="app-title">Inventory</h1>
 
+    <button id="cameraButton" onclick="startScanner()" title="Scan QR">
+      📷
+    </button>
+
     <div id="nav" class="card nav-tabs">
       <button id="tab-inventory" onclick="showInventory()">Inventory</button>
       <button id="tab-events" onclick="showEvents()">Events</button>
@@ -342,11 +366,6 @@
 
     <div id="content"></div>
 
-    <div id="scanBar">
-      <button id="scanButton" onclick="startScanner()">Scan</button>
-      <div id="scanHintText"></div>
-    </div>
-
     <script src="https://unpkg.com/html5-qrcode"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script>
@@ -358,8 +377,7 @@
         activeStorageLocation: null
       };
 
-      let BASE_URL = null;
-      let BASE_URL_PROMISE = null;
+      let BASE_URL = "https://dbrianwalton.github.io/HomeInventory/";
       let activeTab = 'inventory';
 
       let inventorySort = {
@@ -388,7 +406,12 @@
       /* ---------- LOADERS ---------- */
 
       function loadInventory(cb) {
-        apiFetch(`${API_BASE}?action=getAllFoodInstances`)
+        apiFetch(API_BASE, {
+          method: "POST",
+          body: JSON.stringify({
+            action: "getAllFoodInstances"
+          })
+        })
           .then(r => r.json())
           .then(data => {
             window._foodInstanceCache = data;
@@ -398,7 +421,12 @@
       }
 
       function loadEvents(cb) {
-        apiFetch(`${API_BASE}?action=getAllProductionEvents`)
+        apiFetch(API_BASE, {
+          method: "POST",
+          body: JSON.stringify({
+            action: "getAllProductionEvents"
+          })
+        })
           .then(r => r.json())
           .then(data => {
             window._eventCache = data;
@@ -408,7 +436,12 @@
       }
 
       function loadStorage(cb) {
-        apiFetch(`${API_BASE}?action=getAllStorageLocations`)
+        apiFetch(API_BASE, {
+          method: "POST",
+          body: JSON.stringify({
+            action: "getAllStorageLocations"
+          })
+        })
           .then(r => r.json())
           .then(data => {
             window._storageLocationCache = data;
@@ -452,30 +485,27 @@
       function handleQRCode(text) {
         try {
           const url = new URL(text);
+          const normalizedIncoming =
+            url.origin + url.pathname;
 
-          getBaseUrl().then(base => {
-            const normalizedBase =
-              new URL(base).origin + new URL(base).pathname;
+          const normalizedBase =
+            new URL(BASE_URL).origin + new URL(BASE_URL).pathname;
 
-            const normalizedIncoming =
-              url.origin + url.pathname;
+          if (!normalizedIncoming.startsWith(normalizedBase)) {
+            showError({ message: "This QR code is not recognized by this app." });
+            return;
+          }
 
-            if (!normalizedIncoming.startsWith(normalizedBase)) {
-              showError({ message: "This QR code is not recognized by this app." });
-              return;
-            }
+          const type = url.searchParams.get('type');
+          const id = url.searchParams.get('id');
 
-            const type = url.searchParams.get('type');
-            const id = url.searchParams.get('id');
+          if (!type || !id) {
+            alert("Invalid QR code.");
+            return;
+          }
 
-            if (!type || !id) {
-              alert("Invalid QR code.");
-              return;
-            }
-
-            // Route internally
-            renderApp({ type, id });
-          });
+          // Route internally
+          renderApp({ type, id });
 
         } catch {
           alert("Invalid QR code.");
@@ -500,20 +530,6 @@
         } catch {
           alert("Invalid QR code.");
         }
-      }
-
-      function getBaseUrl() {
-        if (BASE_URL) return Promise.resolve(BASE_URL);
-        if (BASE_URL_PROMISE) return BASE_URL_PROMISE;
-
-        BASE_URL_PROMISE = apiFetch(`${API_BASE}?action=getBaseUrl`)
-          .then(r => r.json())
-          .then(url => {
-            BASE_URL = url;
-            return url;
-          });
-
-        return BASE_URL_PROMISE;
       }
 
       function getInitialRouteState() {
@@ -613,37 +629,36 @@
       /* ------- QR Codes -----------*/
 
       function toggleQRCode(type, id) {
-        getBaseUrl().then(base => {
-          const url = `${base}?type=${type}&id=${id}`;
 
-          const container = document.getElementById(`qr-code-${id}`);
-          const button = document.getElementById(`qr-btn-${id}`);
+        const url = `${BASEURL}?type=${type}&id=${id}`;
 
-          if (!container || !button) return;
+        const container = document.getElementById(`qr-code-${id}`);
+        const button = document.getElementById(`qr-btn-${id}`);
 
-          // ✅ If QR already visible → HIDE it
-          if (container.innerHTML.trim()) {
-            container.innerHTML = '';
-            button.textContent = 'Show QR Code';
-            return;
-          }
+        if (!container || !button) return;
 
-          // ✅ Otherwise → SHOW it
-          container.innerHTML = `
-            <div style="font-size:0.75em; margin-bottom:6px; word-break:break-all;">
-              ${url}
-            </div>
-          `;
+        // ✅ If QR already visible → HIDE it
+        if (container.innerHTML.trim()) {
+          container.innerHTML = '';
+          button.textContent = 'Show QR Code';
+          return;
+        }
 
-          new QRCode(container, {
-            text: url,
-            width: 200,
-            height: 200,
-            correctLevel: QRCode.CorrectLevel.L
-          });
+        // ✅ Otherwise → SHOW it
+        container.innerHTML = `
+          <div style="font-size:0.75em; margin-bottom:6px; word-break:break-all;">
+            ${url}
+          </div>
+        `;
 
-          button.textContent = 'Hide QR Code';
+        new QRCode(container, {
+          text: url,
+          width: 200,
+          height: 200,
+          correctLevel: QRCode.CorrectLevel.L
         });
+
+        button.textContent = 'Hide QR Code';
       }
       
       /* ---------- HOME ---------- */
