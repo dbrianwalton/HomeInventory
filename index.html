@@ -618,12 +618,14 @@
       }
 
       function updateScanBar() {
-        const hint = document.getElementById('scanHintText');
+        const hint = document.getElementById('status-message');
 
-        hint.textContent =
-          appSession.mode === 'ASSIGNMENT'
+        hint.textContent = 
+          qrScanner ? (
+            appSession.mode === 'ASSIGNMENT'
             ? 'Scan items to assign to selected storage location'
-            : 'Scan a QR code';
+            : 'Scan a QR code'
+          ) : '';
       }
 
       /* ------- QR Codes -----------*/
