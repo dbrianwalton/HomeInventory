@@ -59,6 +59,19 @@ let activeTab = "inventory";
 const appID = "BTM-Inventory";
 const qrVersion = "1.0";
 
+
+let inventorySort = {
+  field: 'DateCreated',
+  direction: 'desc'
+};
+
+let inventoryFilter = {
+  text: '',
+  dateFrom: null,
+  dateTo: null
+};
+
+
 /* ---------- INIT ---------- */
 
 window.onload = async () => {
@@ -231,6 +244,68 @@ function handleQRCode(text) {
   } catch {
     alert("Invalid QR code");
   }
+}
+
+/* ---------- FILTERING ------------ */
+function applyFilter() {
+  const input = document.getElementById('filterInput');
+  inventoryFilter.text = input ? input.value.trim().toLowerCase() : '';
+  renderFoodInstanceList();
+}
+
+function clearTextFilter() {
+  inventoryFilter.text = '';
+  document.getElementById('filterInput').value = '';
+  renderFoodInstanceList();
+}
+
+function applyDateFilter() {
+  const from = document.getElementById('dateFrom');
+  const to = document.getElementById('dateTo');
+
+  inventoryFilter.dateFrom = from?.value
+    ? new Date(from.value + 'T00:00:00')
+    : null;
+
+  inventoryFilter.dateTo = to?.value
+    ? new Date(to.value + 'T23:59:59')
+    : null;
+
+  renderFoodInstanceList();
+}
+
+function toggleFilters() {
+  filtersExpanded = !filtersExpanded;
+
+  const panel = document.getElementById('filters-panel');
+  const button = document.querySelector('.filters-toggle');
+
+  panel.classList.toggle('hidden', !filtersExpanded);
+  button.textContent = filtersExpanded ? '▾ Filters' : '▸ Filters';
+}
+
+function renderFilterChips() {
+  const chips = [];
+
+  if (inventoryFilter.text) {
+    chips.push(`
+      <span class="chip">
+        ${inventoryFilter.text}
+        <button onclick="clearTextFilter()">✕</button>
+      </span>
+    `);
+  }
+
+  if (inventoryFilter.dateFrom || inventoryFilter.dateTo) {
+    chips.push(`
+      <span class="chip">
+        Date filter
+        <button onclick="clearDateFilter()">✕</button>
+      </span>
+    `);
+  }
+
+  document.getElementById('status-controls-chips').innerHTML = chips.join('');
 }
 
 </script>
