@@ -114,16 +114,18 @@ function renderInventory() {
 
 function renderFoodInstanceList() {
   const working = window._foodInstanceCache || [];
+  const storage = window._storageLocationCache || [];
 
   // ---- TEXT FILTER ----
   if (inventoryFilter.text) {
     const terms = inventoryFilter.text.split(/\s+/);
 
     working = working.filter(i => {
+      const location = storage.find(s => s.StorageLocationID === i.StorageLocationID);
       const haystack = [
         i.Label,
         ...(i.Keywords || []),
-        i.StorageLocation?.label || '',
+        location?.label || '',
         i.FoodType,
         i.FoodClassification
       ].join(' ').toLowerCase();
@@ -164,12 +166,13 @@ function renderFoodInstanceList() {
   </thead><tbody>`;
 
   sorted.forEach(i => {
+    const location = storage.find(s => s.StorageLocationID === i.StorageLocationID);
     html += `
       <tr onclick="showFoodInstance('${i.InstanceID}')">
         <td>${i.Date ? i.Date.substring(0,10) : ''}</td>
         <td>${i.InstanceID}</td>
         <td>${i.Label}</td>
-        <td>${i.StorageLocation?.label || ''}</td>
+        <td>${location?.label || ''}</td>
         <td>${i.Status}</td>
       </tr>`;
   });
@@ -227,7 +230,7 @@ function showStorageLocation(id) {
 
   // ✅ Build related food instances from cache
   const foodInstances = window._foodInstanceCache.filter(
-    f => f.StorageLocation?.id === id
+    f => f.StorageLocationID === id
   );
 
   // ✅ Render using same structure as API
@@ -389,6 +392,16 @@ function renderFilterChips() {
 
   document.getElementById('status-controls-chips').innerHTML = chips.join('');
 }
+
+/* -------- SORTING ---------- */
+
+function toggleSort() {
+  inventorySort.direction =
+    inventorySort.direction === 'asc' ? 'desc' : 'asc';
+  renderFoodInstanceList();
+}
+
+
 
 </script>
 </body>
