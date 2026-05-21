@@ -377,6 +377,8 @@
         activeStorageLocation: null
       };
 
+      const APP_CODE = "BTM-Inventory";
+      const QR_VERSION = "1.0";
       let BASE_URL = "https://dbrianwalton.github.io/HomeInventory/";
       let activeTab = 'inventory';
 
@@ -484,17 +486,6 @@
 
       function handleQRCode(text) {
         try {
-          const url = new URL(text);
-          const normalizedIncoming =
-            url.origin + url.pathname;
-
-          const normalizedBase =
-            new URL(BASE_URL).origin + new URL(BASE_URL).pathname;
-
-          if (!normalizedIncoming.startsWith(normalizedBase)) {
-            showError({ message: "This QR code is not recognized by this app." });
-            return;
-          }
 
           const type = url.searchParams.get('type');
           const id = url.searchParams.get('id');
@@ -630,9 +621,7 @@
 
       /* ------- QR Codes -----------*/
 
-      function toggleQRCode(type, id) {
-
-        const url = `${BASEURL}?type=${type}&id=${id}`;
+      function toggleQRCode(id) {
 
         const container = document.getElementById(`qr-code-${id}`);
         const button = document.getElementById(`qr-btn-${id}`);
@@ -653,8 +642,9 @@
           </div>
         `;
 
+        const qrContents = { app: APP_CODE, v: QR_VERSION, id: id };
         new QRCode(container, {
-          text: url,
+          text: JSON.stringify(qrContents),
           width: 200,
           height: 200,
           correctLevel: QRCode.CorrectLevel.L

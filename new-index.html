@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Inventory</title>
+
+  <!-- External CSS -->
+  <link rel="stylesheet" href="btm-inventory.css">
+
+  <!-- Google OAuth -->
+  <script src="https://accounts.google.com/gsi/client"></script>
+
+  <!-- Your API interface file -->
+  <script src="btm-inventory-data-api.js"></script>
+
+  <!-- QR scanner + generator -->
+  <script src="https://unpkg.com/html5-qrcode"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+  <style>
+    body { font-family: sans-serif; padding: 1rem; }
+    #cameraButton {
+      position: fixed;
+      top: 1rem;
+      right: 1rem;
+      font-size: 1.5rem;
+    }
+    .card { margin-bottom: 1rem; }
+  </style>
+</head>
+
+<body>
+
+  <h1 id="app-title">Inventory</h1>
+
+  <button id="cameraButton" onclick="startScanner()">📷</button>
+
+  <div class="card nav-tabs">
+    <button onclick="showInventory()">Inventory</button>
+    <button onclick="showEvents()">Events</button>
+    <button onclick="showStorage()">Storage</button>
+  </div>
+
+  <div id="status" class="card">
+    <div id="status-message"></div>
+  </div>
+
+  <div id="content"></div>
+
+  <div id="scanner-panel" style="display:none;">
+    <div id="qr-reader"></div>
+    <button onclick="stopScanner()">Close Scanner</button>
+  </div>
+
+<script>
+/* ---------- APP STATE ---------- */
+
+let activeTab = "inventory";
+
+/* ---------- INIT ---------- */
+
+window.onload = async () => {
+  await initAuth();  // OAuth from external JS
+  renderHome();
+};
+
+/* ---------- NAV ---------- */
+
+function showInventory() {
+  activeTab = 'inventory';
+  renderHome();
+}
+
+function showEvents() {
+  activeTab = 'events';
+  loadEvents().then(renderEventList);
+}
+
+function showStorage() {
+  activeTab = 'storage';
+  loadStorage().then(renderStorageList);
+}
+
+/* ---------- HOME ---------- */
+
+function renderHome() {
+  document.getElementById('status-message').innerHTML = "Loading...";
+  loadInventory().then(() => {
+    document.getElementById('status-message').innerHTML = "";
+    renderInventory();
+  });
+}
+
+/* ---------- INVENTORY ---------- */
+
+function renderInventory() {
+  renderFoodInstanceList();
+}
+
+function renderFoodInstanceList() {
+  const data = window._foodInstanceCache || [];
+
+  let html = "<ul>";
+  data.forEach(i => {
+    html += `<li onclick="showFoodInstance('${i.InstanceID}')">${i.Label}</li>`;
+  });
+  html += "</ul>";
+
+  document.getElementById("content").innerHTML = html;
+}
+
+/* ---------- DETAIL ---------- */
+
+function showFoodInstance(id) {
+  const item = window._foodInstanceCache.find(i => i.InstanceID === id);
+  if (!item) return;
+
+  document.getElementById("content").innerHTML = `
+    <h2>${item.InstanceID}</h2>
+    <p>${item.Label}</p>
+    <button onclick="toggleQRCode('${item.InstanceID}')">QR</button>
+    <div id="qr-code-${item.InstanceID}"></div>
+  `;
+}
+
+/* ---------- QR ---------- */
+
+function toggleQRCode(id) {
+  const el = document.getElementById(`qr-code-${id}`);
+
+  if (el.innerHTML) {
+    el.innerHTML = "";
+    return;
+  }
+
+  new QRCode(el, {
+    text: JSON.stringify({ id }),
+    width: 200,
+    height: 200
+  });
+}
+
+/* ---------- SCANNER ---------- */
+
+let qrScanner = null;
+
+function startScanner() {
+  document.getElementById('scanner-panel').style.display = 'block';
+
+  qrScanner = new Html5Qrcode("qr-reader");
+
+  qrScanner.start(
+    { facingMode: "environment" },
+    { fps: 10, qrbox: 250 },
+    (text) => {
+      handleQRCode(text);
+      stopScanner();
+    }
+  );
+}
+
+function stopScanner() {
+  if (!qrScanner) return;
+  qrScanner.stop();
+  qrScanner = null;
+  document.getElementById('scanner-panel').style.display = 'none';
+}
+
+/* ---------- QR HANDLER ---------- */
+
+function handleQRCode(text) {
+  try {
+    const obj = JSON.parse(text);
+    if (obj.id) showFoodInstance(obj.id);
+  } catch {
+    alert("Invalid QR code");
+  }
+}
+
+</script>
+</body>
+</html>
