@@ -37,8 +37,8 @@
 
   <div class="card nav-tabs">
     <button onclick="showInventory()">Inventory</button>
-    <button onclick="showEvents()">Events</button>
     <button onclick="showStorage()">Storage</button>
+    <button onclick="showEvents()">Events</button>
   </div>
 
   <div id="status" class="card">
@@ -166,7 +166,7 @@ function renderFoodInstanceList() {
   sorted.forEach(i => {
     html += `
       <tr onclick="showFoodInstance('${i.InstanceID}')">
-        <td>${i.DateCreated ? i.DateCreated.substring(0,10) : ''}</td>
+        <td>${i.Date ? i.DateCreated.substring(0,10) : ''}</td>
         <td>${i.InstanceID}</td>
         <td>${i.Label}</td>
         <td>${i.StorageLocation?.label || ''}</td>
@@ -191,6 +191,88 @@ function showFoodInstance(id) {
     <div id="qr-code-${item.InstanceID}"></div>
   `;
 }
+
+/* ---------- STORAGE ---------- */
+
+function renderStorageList() {
+  const storage = window._storageLocationCache;
+
+  let html = '<div class="card"><table class="inventory-table"><tbody>';
+
+  storage.forEach(s => {
+    html += `
+      <tr onclick="showStorageLocation('${s.StorageLocationID}')">
+        <td>${s.StorageLocationID}</td>
+        <td>${s.Label}</td>
+        <td>${s.PhysicalLocation}</td>
+      </tr>`;
+  });
+
+  html += '</tbody></table></div>';
+  document.getElementById('content').innerHTML = html;
+}
+
+function showStorageLocation(id) {
+  document.getElementById('status-message').innerHTML =
+    '<div><em>Loading location…</em></div>';
+
+  const location = window._storageLocationCache.find(
+    s => s.StorageLocationID === id
+  );
+
+  if (!location) {
+    showError({ message: "Location not found" });
+    return;
+  }
+
+  // ✅ Build related food instances from cache
+  const foodInstances = window._foodInstanceCache.filter(
+    f => f.StorageLocation?.id === id
+  );
+
+  // ✅ Render using same structure as API
+  renderStorageLocation({
+    storageLocation: location,
+    foodInstances: foodInstances
+  });
+
+  document.getElementById('status-message').innerHTML = '';
+}
+
+function renderStorageLocation(data) {
+  const s = data.storageLocation;
+
+  let html = `<div class="card">
+    <h2>${s?.Label}</h2>
+  `;
+
+  html += `
+    <div class="card">
+      <button id="qr-btn-${s.StorageLocationID}"
+              onclick="toggleQRCode('storageLocation','${s.StorageLocationID}')">
+        Show QR Code
+      </button>
+      <div id="qr-code-${s.StorageLocationID}" style="margin-top:10px;"></div>
+    </div>
+  `;
+
+  html += `
+    <button onclick="enterAssignmentMode('${s.StorageLocationID}')">
+      Start Assigning Here
+    </button>
+  `;
+
+  html += `<div class="card">`;
+
+  data.foodInstances.forEach(f => {
+    html += `<div>${f.InstanceID} - ${f.Label}</div>`;
+  });
+
+  html += `</div></div>`;
+
+  document.getElementById('content').innerHTML = html;
+}
+
 
 /* ---------- QR ---------- */
 
