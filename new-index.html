@@ -102,13 +102,67 @@ function renderInventory() {
 function renderFoodInstanceList() {
   const data = window._foodInstanceCache || [];
 
-  let html = "<ul>";
-  data.forEach(i => {
-    html += `<li onclick="showFoodInstance('${i.InstanceID}')">${i.Label}</li>`;
-  });
-  html += "</ul>";
+  // ---- TEXT FILTER ----
+  if (inventoryFilter.text) {
+    const terms = inventoryFilter.text.split(/\s+/);
 
-  document.getElementById("content").innerHTML = html;
+    working = working.filter(i => {
+      const haystack = [
+        i.Label,
+        ...(i.Keywords || []),
+        i.StorageLocation?.label || '',
+        i.FoodType,
+        i.FoodClassification
+      ].join(' ').toLowerCase();
+
+      return terms.every(t => haystack.includes(t));
+    });
+  }
+
+  // ---- DATE FILTER ----
+  if (inventoryFilter.dateFrom || inventoryFilter.dateTo) {
+    working = working.filter(i => {
+      if (!i.DateCreated) return false;
+
+      const d = new Date(i.DateCreated);
+      if (inventoryFilter.dateFrom && d < inventoryFilter.dateFrom) return false;
+      if (inventoryFilter.dateTo && d > inventoryFilter.dateTo) return false;
+
+      return true;
+    });
+  }
+
+  const sorted = [...working].sort((a, b) => {
+    const at = a.DateCreated ? new Date(a.DateCreated).getTime() : 0;
+    const bt = b.DateCreated ? new Date(b.DateCreated).getTime() : 0;
+    return inventorySort.direction === 'asc' ? at - bt : bt - at;
+  });
+
+  let html = '<div class="card"><div class="table-wrapper"><table class="inventory-table">';
+
+  html += `<thead>
+    <tr>
+      <th onclick="toggleSort()">Date</th>
+      <th>ID</th>
+      <th>Description</th>
+      <th>Storage</th>
+      <th>Status</th>
+    </tr>
+  </thead><tbody>`;
+
+  sorted.forEach(i => {
+    html += `
+      <tr onclick="showFoodInstance('${i.InstanceID}')">
+        <td>${i.DateCreated ? i.DateCreated.substring(0,10) : ''}</td>
+        <td>${i.InstanceID}</td>
+        <td>${i.Label}</td>
+        <td>${i.StorageLocation?.label || ''}</td>
+        <td>${i.Status}</td>
+      </tr>`;
+  });
+
+  html += '</tbody></table></div></div>';
+  document.getElementById('content').innerHTML = html;
 }
 
 /* ---------- DETAIL ---------- */
@@ -136,7 +190,7 @@ function toggleQRCode(id) {
   }
 
   new QRCode(el, {
-    text: JSON.stringify({ appID, qrv: qrVersion, id }),
+    text: JSON.stringify({ appID, id }),
     width: 200,
     height: 200
   });
