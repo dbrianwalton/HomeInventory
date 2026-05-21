@@ -61,7 +61,7 @@ const qrVersion = "1.0";
 
 
 let inventorySort = {
-  field: 'DateCreated',
+  field: 'Date',
   direction: 'desc'
 };
 
@@ -135,9 +135,9 @@ function renderFoodInstanceList() {
   // ---- DATE FILTER ----
   if (inventoryFilter.dateFrom || inventoryFilter.dateTo) {
     working = working.filter(i => {
-      if (!i.DateCreated) return false;
+      if (!i.Date) return false;
 
-      const d = new Date(i.DateCreated);
+      const d = new Date(i.Date);
       if (inventoryFilter.dateFrom && d < inventoryFilter.dateFrom) return false;
       if (inventoryFilter.dateTo && d > inventoryFilter.dateTo) return false;
 
@@ -146,8 +146,8 @@ function renderFoodInstanceList() {
   }
 
   const sorted = [...working].sort((a, b) => {
-    const at = a.DateCreated ? new Date(a.DateCreated).getTime() : 0;
-    const bt = b.DateCreated ? new Date(b.DateCreated).getTime() : 0;
+    const at = a.Date ? new Date(a.Date).getTime() : 0;
+    const bt = b.Date ? new Date(b.Date).getTime() : 0;
     return inventorySort.direction === 'asc' ? at - bt : bt - at;
   });
 
@@ -166,7 +166,7 @@ function renderFoodInstanceList() {
   sorted.forEach(i => {
     html += `
       <tr onclick="showFoodInstance('${i.InstanceID}')">
-        <td>${i.Date ? i.DateCreated.substring(0,10) : ''}</td>
+        <td>${i.Date ? i.Date.substring(0,10) : ''}</td>
         <td>${i.InstanceID}</td>
         <td>${i.Label}</td>
         <td>${i.StorageLocation?.label || ''}</td>
