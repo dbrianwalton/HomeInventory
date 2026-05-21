@@ -56,6 +56,8 @@
 /* ---------- APP STATE ---------- */
 
 let activeTab = "inventory";
+const appID = "BTM-Inventory";
+const qrVersion = "1.0";
 
 /* ---------- INIT ---------- */
 
@@ -134,7 +136,7 @@ function toggleQRCode(id) {
   }
 
   new QRCode(el, {
-    text: JSON.stringify({ id }),
+    text: JSON.stringify({ appID, qrv: qrVersion, id }),
     width: 200,
     height: 200
   });
