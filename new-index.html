@@ -125,7 +125,7 @@ function renderFoodInstanceList() {
       const haystack = [
         i.Label,
         ...(i.Keywords || []),
-        location?.label || '',
+        location?.Label || '',
         i.FoodType,
         i.FoodClassification
       ].join(' ').toLowerCase();
@@ -172,7 +172,7 @@ function renderFoodInstanceList() {
         <td>${i.Date ? i.Date.substring(0,10) : ''}</td>
         <td>${i.InstanceID}</td>
         <td>${i.Label}</td>
-        <td>${location?.label || ''}</td>
+        <td>${location?.Label || ''}</td>
         <td>${i.Status}</td>
       </tr>`;
   });
