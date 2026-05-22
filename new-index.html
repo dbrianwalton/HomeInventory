@@ -40,8 +40,8 @@
     <button onclick="showInventory()">Inventory</button>
     <button onclick="showStorage()">Storage</button>
     <button onclick="showEvents()">Events</button>
-    <button onclick="generateLabelsPDF()">
-      Print Labels (${selectedItems.size})
+    <button id="printBtn" onclick="generateLabelsPDF()">
+      Print Labels (0)
     </button>
   </div>
 
@@ -181,6 +181,7 @@ function renderFoodInstanceList() {
     const location = storageMap[i.StorageLocationID];
     html += `
       <tr
+        id="row-${i.InstanceID}"
         class="${selectedItems.has(i.InstanceID) ? 'selected-row' : ''}"
         onclick="toggleRowSelection(event, '${i.InstanceID}')"
         ondblclick="showFoodInstance('${i.InstanceID}')"        
@@ -454,15 +455,28 @@ function toggleSort() {
 /* ----------- SELECTING -------------- */
 
 function toggleRowSelection(event, id) {
-  event.stopPropagation(); // prevent detail view navigation
+
+  event.stopPropagation();
+
+  const row = document.getElementById(`row-${id}`);
 
   if (selectedItems.has(id)) {
     selectedItems.delete(id);
+    row.classList.remove('selected-row');
   } else {
     selectedItems.add(id);
+    row.classList.add('selected-row');
   }
 
-  renderFoodInstanceList(); // re-render updates highlight
+  updateSelectionUI(); // ✅ optional (button count, etc.)
+}
+
+
+function updateSelectionUI() {
+  const btn = document.getElementById('printBtn');
+  if (btn) {
+    btn.textContent = `Print Labels (${selectedItems.size})`;
+  }
 }
 
 /* --------- LABELS ----------- */
