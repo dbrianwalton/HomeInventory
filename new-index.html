@@ -467,7 +467,7 @@ function toggleRowSelection(event, id) {
 
 /* --------- LABELS ----------- */
 
-async function generateLabelsPDF() {
+async function generateLabelsPDF(skip=3) {
   const { jsPDF } = window.jspdf;
 
   const doc = new jsPDF({
@@ -488,10 +488,11 @@ async function generateLabelsPDF() {
   const labelWidth = 4;
   const labelHeight = 2;
 
-  const marginX = 0.25;
+  const marginX = 0.1875;
   const marginY = 0.5;
+  const hgap = 0.125;
 
-  let index = 0;
+  let index = skip;
 
   for (let i = 0; i < items.length; i++) {
     const col = index % 2;
