@@ -25,7 +25,9 @@ async function initAuth() {
       }
     });
 
-    tokenClient.requestAccessToken();
+    tokenClient.requestAccessToken({
+      prompt: ""
+    });
   });
 }
 
@@ -64,9 +66,22 @@ async function loadInventory() {
 async function loadStorage() {
   if (window._storageLocationCache) return;
   window._storageLocationCache = await sheetFetch("StorageLocations!A1:Z");
+
+  window._storageMap = {};
+  window._storageLocationCache.forEach(s => {
+    window._storageMap[s.StorageLocationID] = s;
+  });
 }
 
 async function loadEvents() {
   if (window._eventCache) return;
   window._eventCache = await sheetFetch("Events!A1:Z");
+}
+
+async function loadAllData() {
+  await Promise.all([
+    loadInventory(),
+    loadStorage(),
+    loadEvents()
+  ]);
 }

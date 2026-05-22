@@ -71,11 +71,13 @@ let inventoryFilter = {
   dateTo: null
 };
 
+let filtersExpanded = false;
 
 /* ---------- INIT ---------- */
 
 window.onload = async () => {
   await initAuth();  // OAuth from external JS
+  await loadAllData();
   renderHome();
 };
 
@@ -88,12 +90,12 @@ function showInventory() {
 
 function showEvents() {
   activeTab = 'events';
-  loadEvents().then(renderEventList);
+  renderEventList();
 }
 
 function showStorage() {
   activeTab = 'storage';
-  loadStorage().then(renderStorageList);
+  renderStorageList();
 }
 
 /* ---------- HOME ---------- */
@@ -109,19 +111,20 @@ function renderHome() {
 /* ---------- INVENTORY ---------- */
 
 function renderInventory() {
+  renderFilterUI();
   renderFoodInstanceList();
 }
 
 function renderFoodInstanceList() {
-  const working = window._foodInstanceCache || [];
-  const storage = window._storageLocationCache || [];
+  let working = window._foodInstanceCache || [];
+  const storageMap = window._storageMap || {};
 
   // ---- TEXT FILTER ----
   if (inventoryFilter.text) {
     const terms = inventoryFilter.text.split(/\s+/);
 
     working = working.filter(i => {
-      const location = storage.find(s => s.StorageLocationID === i.StorageLocationID);
+      const location = storageMap[i.StorageLocationID];
       const haystack = [
         i.Label,
         ...(i.Keywords || []),
@@ -157,7 +160,9 @@ function renderFoodInstanceList() {
 
   html += `<thead>
     <tr>
-      <th onclick="toggleSort()">Date</th>
+      <th onclick="toggleSort()">
+        Date ${inventorySort.direction === 'asc' ? '▲' : '▼'}
+      </th>
       <th>ID</th>
       <th>Description</th>
       <th>Storage</th>
@@ -166,7 +171,7 @@ function renderFoodInstanceList() {
   </thead><tbody>`;
 
   sorted.forEach(i => {
-    const location = storage.find(s => s.StorageLocationID === i.StorageLocationID);
+    const location = storageMap[i.StorageLocationID];
     html += `
       <tr onclick="showFoodInstance('${i.InstanceID}')">
         <td>${i.Date ? i.Date.substring(0,10) : ''}</td>
@@ -219,9 +224,7 @@ function showStorageLocation(id) {
   document.getElementById('status-message').innerHTML =
     '<div><em>Loading location…</em></div>';
 
-  const location = window._storageLocationCache.find(
-    s => s.StorageLocationID === id
-  );
+  const location = window._storageMap[id];
 
   if (!location) {
     showError({ message: "Location not found" });
@@ -357,6 +360,21 @@ function applyDateFilter() {
     : null;
 
   renderFoodInstanceList();
+}
+
+function renderFilterUI() {
+  document.getElementById('status-message').innerHTML = `
+    <div>
+      <input
+        id="filterInput"
+        type="text"
+        placeholder="Filter by description or keywords"
+        value="${inventoryFilter.text || ''}"
+        oninput="applyFilter()"
+      />
+      <button onclick="clearTextFilter()">X</button>
+    </div>
+  `;
 }
 
 function toggleFilters() {
