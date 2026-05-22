@@ -36,7 +36,7 @@
 
   <button id="cameraButton" onclick="startScanner()">📷</button>
   <button id="labelButton" onclick="openLabelPanel()">🏷️</button>
-  <button id="modeButton" onclick="toggleMode()">Select Mode</button>
+  <button id="modeButton" onclick="toggleMode()">🔍</button>
 
   <div class="card nav-tabs">
     <button onclick="showInventory()">Inventory</button>
@@ -94,6 +94,7 @@ const qrVersion = "1.0";
 
 let interactionMode = "browse";  // "browse" | "select"
 let isDragging = false;
+let dragAction = null;  // "add" | "remove" | null
 
 let inventorySort = {
   field: 'Date',
@@ -213,11 +214,13 @@ function renderFoodInstanceList() {
     html += `
       <tr
         id="row-${i.InstanceID}"
+        data-id="${i.InstanceID}"
         class="${selectedItems.has(i.InstanceID) ? 'selected-row' : ''}"
-        onclick="toggleRowSelection(event, '${i.InstanceID}')"
-        ondblclick="showFoodInstance('${i.InstanceID}')"        
+        onmousedown="handleRowMouseDown(event, this)"
+        onmouseover="handleRowMouseOver(event, this)"
+        onclick="handleRowClick(event, '${i.InstanceID}')"
       >
-        <td>${i.Date ? i.Date.substring(0,10) : ''}</td>
+        <td>${i.Date || ''}</td>
         <td>${i.InstanceID}</td>
         <td>${i.Label}</td>
         <td>${location?.Label || ''}</td>
@@ -407,6 +410,16 @@ function applyDateFilter() {
   renderFoodInstanceList();
 }
 
+function clearDateFilter() {
+  inventoryFilter.dateFrom = null;
+  inventoryFilter.dateTo = null;
+
+  document.getElementById('dateFrom').value = '';
+  document.getElementById('dateTo').value = '';
+
+  renderFoodInstanceList();
+}
+
 function renderFilterUI() {
   document.getElementById('status-controls').innerHTML = `
     <div class="filters-header-row">
@@ -503,23 +516,85 @@ function toggleMode() {
 
 /* ----------- SELECTING -------------- */
 
+function handleRowClick(event, id) {
+  if (interactionMode === "browse") {
+    showFoodInstance(id);
+  } else {
+    toggleRowSelection(event, id);
+  }
+}
+
+function handleRowMouseDown(event, rowEl) {
+  if (interactionMode !== "select") return;
+
+  isDragging = true;
+
+  const id = rowEl.dataset.id;
+
+  // ✅ Determine drag intent ONCE
+  if (selectedItems.has(id)) {
+    dragAction = "remove";
+    selectedItems.delete(id);
+    rowEl.classList.remove("selected-row");
+  } else {
+    dragAction = "add";
+    selectedItems.add(id);
+    rowEl.classList.add("selected-row");
+  }
+
+  updateSelectionUI();
+}
+
+function handleRowMouseDown(event, rowEl) {
+  if (interactionMode !== "select") return;
+
+  isDragging = true;
+
+  const id = rowEl.dataset.id;
+
+  toggleRowSelection(event, id);
+}
+
+function handleRowMouseOver(event, rowEl) {
+  if (interactionMode !== "select" || !isDragging || !dragAction) return;
+
+  const id = rowEl.dataset.id;
+
+  if (dragAction === "add") {
+    if (!selectedItems.has(id)) {
+      selectedItems.add(id);
+      rowEl.classList.add("selected-row");
+      updateSelectionUI();
+    }
+  }
+
+  if (dragAction === "remove") {
+    if (selectedItems.has(id)) {
+      selectedItems.delete(id);
+      rowEl.classList.remove("selected-row");
+      updateSelectionUI();
+    }
+  }
+}
+
+document.addEventListener("mouseup", () => {
+  isDragging = false;
+  dragAction = null;
+});
+
 function toggleRowSelection(event, id) {
-
-  event.stopPropagation();
-
   const row = document.getElementById(`row-${id}`);
 
   if (selectedItems.has(id)) {
     selectedItems.delete(id);
-    row.classList.remove('selected-row');
+    row.classList.remove("selected-row");
   } else {
     selectedItems.add(id);
-    row.classList.add('selected-row');
+    row.classList.add("selected-row");
   }
 
-  updateSelectionUI(); // ✅ optional (button count, etc.)
+  updateSelectionUI();
 }
-
 
 function updateSelectionUI() {
   const btn = document.getElementById('printBtn');
