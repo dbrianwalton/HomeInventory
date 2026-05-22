@@ -527,10 +527,7 @@ function handleRowClick(event, id) {
     showFoodInstance(id);
     return;
   }
-  
-  if (didDrag) return;
-
-  toggleRowSelection(event, id);
+  // In select mode, selection is controlled in other ways.  
 }
 
 function handleRowMouseDown(event, rowEl) {
