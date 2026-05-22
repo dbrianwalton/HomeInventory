@@ -149,7 +149,7 @@ function renderFoodInstanceList() {
     working = working.filter(i => {
       if (!i.Date) return false;
 
-      const d = new Date(i.Date);
+      const d = parseDate(i.Date);
       if (inventoryFilter.dateFrom && d < inventoryFilter.dateFrom) return false;
       if (inventoryFilter.dateTo && d > inventoryFilter.dateTo) return false;
 
@@ -158,8 +158,8 @@ function renderFoodInstanceList() {
   }
 
   const sorted = [...working].sort((a, b) => {
-    const at = a.Date ? new Date(a.Date).getTime() : 0;
-    const bt = b.Date ? new Date(b.Date).getTime() : 0;
+    const at = a.Date ? parseDate(a.Date);
+    const bt = b.Date ? parseDate(b.Date);
     return inventorySort.direction === 'asc' ? at - bt : bt - at;
   });
 
@@ -364,11 +364,11 @@ function applyDateFilter() {
   const to = document.getElementById('dateTo');
 
   inventoryFilter.dateFrom = from?.value
-    ? new Date(from.value + 'T00:00:00')
+    ? new Date(from.value + 'T00:00:00').getTime()
     : null;
 
   inventoryFilter.dateTo = to?.value
-    ? new Date(to.value + 'T23:59:59')
+    ? new Date(to.value + 'T23:59:59').getTime()
     : null;
 
   renderFoodInstanceList();
@@ -625,6 +625,27 @@ async function drawLabel(doc, item, x, y) {
   if (item.Notes) {
     drawClipped(item.Notes, 2.3);
   }
+}
+
+/* ------- UTILITIES --------- */activeTab
+function parseDate(value) {
+  if (!value) return 0;
+
+  // MM/DD/YYYY
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(value)) {
+    const [mm, dd, yyyy] = value.split('/');
+    return new Date(`${yyyy}-${mm}-${dd}`).getTime();
+  }
+
+  // MM/YYYY
+  if (/^\d{2}\/\d{4}$/.test(value)) {
+    const [mm, yyyy] = value.split('/');
+    return new Date(`${yyyy}-${mm}-01`).getTime();  // use start of month
+  }
+
+  // ❗ fallback (shouldn’t really hit now)
+  const d = new Date(value);
+  return isNaN(d) ? 0 : d.getTime();
 }
 
 
