@@ -503,7 +503,7 @@ async function generateLabelsPDF(skip=3) {
       index = 0;
     }
 
-    const x = marginX + col * labelWidth;
+    const x = marginX + col * (labelWidth+hgap);
     const y = marginY + row * labelHeight;
 
     await drawLabel(doc, items[i], x, y);
