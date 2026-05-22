@@ -36,6 +36,7 @@
 
   <button id="cameraButton" onclick="startScanner()">📷</button>
   <button id="labelButton" onclick="openLabelPanel()">🏷️</button>
+  <button id="modeButton" onclick="toggleMode()">Select Mode</button>
 
   <div class="card nav-tabs">
     <button onclick="showInventory()">Inventory</button>
@@ -91,6 +92,8 @@ let activeTab = "inventory";
 const appID = "BTM-Inventory";
 const qrVersion = "1.0";
 
+let interactionMode = "browse";  // "browse" | "select"
+let isDragging = false;
 
 let inventorySort = {
   field: 'Date',
@@ -119,6 +122,7 @@ window.onload = async () => {
 
 function showInventory() {
   activeTab = 'inventory';
+  document.getElementById("modeButton").style.display = "block";
   renderHome();
 }
 
@@ -228,6 +232,8 @@ function renderFoodInstanceList() {
 /* ---------- DETAIL ---------- */
 
 function showFoodInstance(id) {
+  document.getElementById("modeButton").style.display = "none";
+
   const item = window._foodInstanceCache.find(i => i.InstanceID === id);
   if (!item) return;
 
@@ -477,6 +483,22 @@ function toggleSort() {
   inventorySort.direction =
     inventorySort.direction === 'asc' ? 'desc' : 'asc';
   renderFoodInstanceList();
+}
+
+/* -------- MODE CONTROL --------------*/
+
+function toggleMode() {
+  interactionMode = interactionMode === "browse" ? "select" : "browse";
+
+  const btn = document.getElementById("modeButton");
+
+  if (interactionMode === "select") {
+    btn.textContent = "✅";
+    document.body.classList.add("select-mode");
+  } else {
+    btn.textContent = "🔍";
+    document.body.classList.remove("select-mode");
+  }
 }
 
 /* ----------- SELECTING -------------- */

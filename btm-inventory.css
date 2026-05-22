@@ -67,7 +67,7 @@ button {
 #labelButton {
   position: fixed;
   top: 0.8rem;
-  right: 3.5rem;
+  right: 3.6rem;
 
   font-size: 1.5rem;
   padding: 0.5rem;
@@ -84,6 +84,42 @@ button {
   background: #f3f4f6;
 }
 
+#modeButton {
+  position: fixed;
+  top: 0.8rem;
+  right: 6.4rem;
+
+  font-size: 1.5rem;
+  padding: 0.5rem;
+
+  border-radius: 50%;
+  border: 1px solid #ccc;
+background: white;
+  
+  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+  cursor: pointer;
+  z-index: 200;
+}
+
+#modeButton:hover {
+  background: #f3f4f6;
+}
+
+
+/* Default browsing */
+body:not(.select-mode) .inventory-table tbody tr {
+  cursor: pointer;
+}
+
+/* Selection mode */
+body.select-mode {
+  outline: 3px solid #2563eb22;
+  user-select: none;
+}
+
+body.select-mode .inventory-table tbody tr {
+  cursor: cell;   /* or crosshair */
+}
 
 /* ---------- NAV ---------- */
 
