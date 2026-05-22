@@ -180,7 +180,6 @@ function renderFoodInstanceList() {
   sorted.forEach(i => {
     const location = storageMap[i.StorageLocationID];
     html += `
-      <tr onclick="showFoodInstance('${i.InstanceID}')">
       <tr
         class="${selectedItems.has(i.InstanceID) ? 'selected-row' : ''}"
         onclick="toggleRowSelection(event, '${i.InstanceID}')"
