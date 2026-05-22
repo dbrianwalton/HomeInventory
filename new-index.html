@@ -166,11 +166,16 @@ function renderFoodInstanceList() {
       const location = storageMap[i.StorageLocationID];
       const haystack = [
         i.Label,
-        ...(i.Keywords || []),
+        i.Keywords,
+        i.Notes,
         location?.Label || '',
         i.FoodType,
         i.FoodClassification
-      ].join(' ').toLowerCase();
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase()
+        .replace(/\s+/g, ' ');
 
       return terms.every(t => haystack.includes(t));
     });
