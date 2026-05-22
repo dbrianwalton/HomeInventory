@@ -35,6 +35,7 @@
   <h1 id="app-title">Inventory</h1>
 
   <button id="cameraButton" onclick="startScanner()">📷</button>
+  <button id="labelButton" onclick="openLabelPanel()">🏷️</button>
 
   <div class="card nav-tabs">
     <button onclick="showInventory()">Inventory</button>
@@ -58,6 +59,31 @@
     <button onclick="stopScanner()">Close Scanner</button>
   </div>
 
+  <div id="labelPanel" class="label-panel hidden">
+
+    <div class="label-panel-content">
+
+      <h3>Print Labels</h3>
+
+      <!-- Format -->
+      <label>Label Format</label>
+      <select id="labelFormat">
+        <option value="2x4-10">2" x 4" (10 per page)</option>
+      </select>
+
+      <!-- Layout picker -->
+      <label>Start Position</label>
+      <div id="labelGrid" class="label-grid"></div>
+
+      <!-- Buttons -->
+      <div class="label-actions">
+        <button onclick="confirmLabelPrint()">Create PDF</button>
+        <button onclick="closeLabelPanel()">Cancel</button>
+      </div>
+
+    </div>
+  </div>
+
 <script>
 /* ---------- APP STATE ---------- */
 
@@ -79,6 +105,7 @@ let inventoryFilter = {
 
 let filtersExpanded = false;
 let selectedItems = new Set();
+let labelStartIndex = 0;
 
 /* ---------- INIT ---------- */
 
@@ -480,6 +507,47 @@ function updateSelectionUI() {
 }
 
 /* --------- LABELS ----------- */
+
+function openLabelPanel() {
+  document.getElementById("labelPanel").classList.remove("hidden");
+  renderLabelGrid();
+}
+
+function closeLabelPanel() {
+  document.getElementById("labelPanel").classList.add("hidden");
+}
+
+function renderLabelGrid() {
+  const grid = document.getElementById("labelGrid");
+  grid.innerHTML = "";
+
+  for (let i = 0; i < 10; i++) {
+    const cell = document.createElement("div");
+    cell.className = "label-cell";
+
+    if (i < labelStartIndex) {
+      cell.classList.add("used");
+    }
+
+    if (i === labelStartIndex) {
+      cell.classList.add("active");
+    }
+
+    cell.textContent = i + 1;
+
+    cell.onclick = () => {
+      labelStartIndex = i;
+      renderLabelGrid();
+    };
+
+    grid.appendChild(cell);
+  }
+}
+
+function confirmLabelPrint() {
+  closeLabelPanel();
+  generateLabelsPDF(labelStartIndex);
+}
 
 async function generateLabelsPDF(skip=3) {
   const { jsPDF } = window.jspdf;
