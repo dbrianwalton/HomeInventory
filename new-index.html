@@ -632,13 +632,13 @@ function parseDate(value) {
   if (!value) return 0;
 
   // MM/DD/YYYY
-  if (/^\d{2}\/\d{2}\/\d{4}$/.test(value)) {
+  if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(value)) {
     const [mm, dd, yyyy] = value.split('/');
     return new Date(`${yyyy}-${mm}-${dd}`).getTime();
   }
 
   // MM/YYYY
-  if (/^\d{2}\/\d{4}$/.test(value)) {
+  if (/^\d{1,2}\/\d{4}$/.test(value)) {
     const [mm, yyyy] = value.split('/');
     return new Date(`${yyyy}-${mm}-01`).getTime();  // use start of month
   }
