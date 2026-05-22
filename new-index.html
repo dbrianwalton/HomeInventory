@@ -554,12 +554,13 @@ async function drawLabel(doc, item, x, y) {
     qrSize
   );
 
-  // ✅ ID under QR
+  // ✅ ID under QR and centered
+  const idDims = doc.getTextDimensions(item.InstanceID);
   doc.setFontSize(12);
   doc.text(
     item.InstanceID,
-    x + padding,
-    y + padding + qrSize + 0.15
+    x + padding + (qrSize - idDims.w)/2,
+    y + padding + qrSize + idDims.v + 0.1
   );
 
   // ✅ RIGHT SIDE TEXT
@@ -571,10 +572,10 @@ async function drawLabel(doc, item, x, y) {
     const lines = doc.splitTextToSize(text || "", maxWidth).slice(0, maxLines);
 
     lines.forEach(line => {
-      doc.text(line, textX, textY);
-
       // Use actual text height for spacing
       const dims = doc.getTextDimensions(line);
+      doc.text(line, textX, textY + dims.h);
+
       textY += dims.h + 0.05; // small padding between lines
     });
 
