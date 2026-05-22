@@ -37,6 +37,7 @@
   <button id="cameraButton" onclick="startScanner()">📷</button>
   <button id="labelButton" onclick="openLabelPanel()">🏷️</button>
   <button id="modeButton" onclick="toggleMode()">🔍</button>
+  <div id="selectionCount"></div>
 
   <div class="card nav-tabs">
     <button onclick="showInventory()">Inventory</button>
@@ -678,9 +679,9 @@ function toggleRowSelection(event, id) {
 }
 
 function updateSelectionUI() {
-  const btn = document.getElementById('printBtn');
-  if (btn) {
-    btn.textContent = `Print Labels (${selectedItems.size})`;
+  const countEl = document.getElementById('selectionCount');
+  if (countEl) {
+    countEl.textContent = `${selectedItems.size}`;
   }
 }
 

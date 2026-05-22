@@ -67,7 +67,7 @@ button {
 #labelButton {
   position: fixed;
   top: 0.8rem;
-  right: 3.6rem;
+  right: 3.8rem;
 
   font-size: 1.5rem;
   padding: 0.5rem;
@@ -87,14 +87,14 @@ button {
 #modeButton {
   position: fixed;
   top: 0.8rem;
-  right: 6.4rem;
+  right: 6.5rem;
 
   font-size: 1.5rem;
   padding: 0.5rem;
 
   border-radius: 50%;
   border: 1px solid #ccc;
-background: white;
+  background: white;
   
   box-shadow: 0 2px 6px rgba(0,0,0,0.15);
   cursor: pointer;
@@ -103,6 +103,15 @@ background: white;
 
 #modeButton:hover {
   background: #f3f4f6;
+}
+
+#selectionCount {
+  position: fixed;
+  top: 1rem;
+  right: 6.7rem;
+
+  font-size: 0.75rem;
+  z-index: 201;
 }
 
 
