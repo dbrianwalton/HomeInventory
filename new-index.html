@@ -520,10 +520,10 @@ function toggleMode() {
   } else {
     btn.textContent = "🔍";
     document.body.classList.remove("select-mode");
-    
+
     // Clear the selection.
     for (const i of selectedItems) {
-      const iRow = document.getElementByName("row-" + i);
+      const iRow = document.getElementById("row-" + i);
       iRow.classList.remove("selected-row");
     }
     selectedItems.clear();
@@ -597,12 +597,14 @@ let touchTimer;
 
 
 function handleTouchStart(event) {
-  if (interactionMode !== "select") return;
+  if (interactionMode !== "select") {
+    touchTimer = setTimeout(() => {
+      toggleMode();  // enter select mode
+    }, 400);
+    return;
+  }
 
   isDragging = true;
-  touchTimer = setTimeout(() => {
-    toggleMode();  // enter select mode
-  }, 400);
 
   const rowEl = event.currentTarget;
   const id = rowEl.dataset.id;
