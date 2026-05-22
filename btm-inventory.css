@@ -107,6 +107,94 @@ button {
   z-index: 1;
 }
 
+.selected-row {
+  background-color: #c7e0ff !important;
+}
+
+.inventory-table tbody tr {
+  cursor: pointer;
+}
+
+
+/* -------- FILTER ---------- */
+
+.filters-header-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.filters-toggle {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 0.95rem;
+  cursor: pointer;
+  white-space: nowrap;
+  color: #2563eb;
+}
+
+.filters-header-row input {
+  flex: 1;          /* input expands */
+  min-width: 0;     /* prevents overflow on small screens */
+  font-size: 1.1rem;
+  padding: 0.4rem;
+}
+
+.filters-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 0.4rem;
+}
+
+.filters-panel.hidden {
+  display: none;
+}
+
+.filters-panel {
+  margin-top: 0.5rem;
+}
+
+.filter-row-text input {
+  flex: 1;
+  width: 100%;
+}
+
+.filter-row {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-bottom: 0.25rem;
+}
+
+.filter-label {
+  font-size: 1rem;
+  color: #555;
+  white-space: nowrap;
+}
+
+.date-range-sep {
+  color: #777;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.5rem;
+  background: #e5f0ff;
+  border-radius: 999px;
+  font-size: 0.9rem;
+  line-height: 1;
+}
+
+.chip button {
+  background: none;
+  border: none;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
 /* ---------- STATES ---------- */
 
 .warning { color: #b45309; }

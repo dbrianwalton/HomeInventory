@@ -16,6 +16,7 @@
   <!-- QR scanner + generator -->
   <script src="https://unpkg.com/html5-qrcode"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
   <style>
     body { font-family: sans-serif; padding: 1rem; }
@@ -39,6 +40,9 @@
     <button onclick="showInventory()">Inventory</button>
     <button onclick="showStorage()">Storage</button>
     <button onclick="showEvents()">Events</button>
+    <button onclick="generateLabelsPDF()">
+      Print Labels (${selectedItems.size})
+    </button>
   </div>
 
   <div id="status" class="card">
@@ -74,6 +78,7 @@ let inventoryFilter = {
 };
 
 let filtersExpanded = false;
+let selectedItems = new Set();
 
 /* ---------- INIT ---------- */
 
@@ -176,6 +181,11 @@ function renderFoodInstanceList() {
     const location = storageMap[i.StorageLocationID];
     html += `
       <tr onclick="showFoodInstance('${i.InstanceID}')">
+      <tr
+        class="${selectedItems.has(i.InstanceID) ? 'selected-row' : ''}"
+        onclick="toggleRowSelection(event, '${i.InstanceID}')"
+        ondblclick="showFoodInstance('${i.InstanceID}')"        
+      >
         <td>${i.Date ? i.Date.substring(0,10) : ''}</td>
         <td>${i.InstanceID}</td>
         <td>${i.Label}</td>
@@ -442,6 +452,118 @@ function toggleSort() {
   renderFoodInstanceList();
 }
 
+/* ----------- SELECTING -------------- */
+
+function toggleRowSelection(event, id) {
+  event.stopPropagation(); // prevent detail view navigation
+
+  if (selectedItems.has(id)) {
+    selectedItems.delete(id);
+  } else {
+    selectedItems.add(id);
+  }
+
+  renderFoodInstanceList(); // re-render updates highlight
+}
+
+/* --------- LABELS ----------- */
+
+async function generateLabelsPDF() {
+  const { jsPDF } = window.jspdf;
+
+  const doc = new jsPDF({
+    unit: "in",
+    format: "letter"
+  });
+
+  const items = window._foodInstanceCache.filter(i =>
+    selectedItems.has(i.InstanceID)
+  );
+
+  if (!items.length) {
+    alert("No items selected");
+    return;
+  }
+
+  const labelsPerPage = 8;
+  const labelWidth = 4;
+  const labelHeight = 2;
+
+  const marginX = 0.25;
+  const marginY = 0.5;
+
+  let index = 0;
+
+  for (let i = 0; i < items.length; i++) {
+    const col = index % 2;
+    const row = Math.floor(index % labelsPerPage / 2);
+
+    if (i > 0 && index % labelsPerPage === 0) {
+      doc.addPage();
+      index = 0;
+    }
+
+    const x = marginX + col * labelWidth;
+    const y = marginY + row * labelHeight;
+
+    await drawLabel(doc, items[i], x, y);
+
+    index++;
+  }
+
+  doc.save("labels.pdf");
+}
+
+async function drawLabel(doc, item, x, y) {
+  const padding = 0.125; // 1/8 inch
+  const qrSize = 1.2;
+
+  // QR canvas (temporary)
+  const qrTemp = document.createElement("div");
+  new QRCode(qrTemp, {
+    text: JSON.stringify({ id: item.InstanceID }),
+    width: 200,
+    height: 200
+  });
+
+  const img = qrTemp.querySelector("canvas").toDataURL("image/png");
+
+  // ✅ QR LEFT SIDE
+  doc.addImage(img,
+    "PNG",
+    x + padding,
+    y + padding,
+    qrSize,
+    qrSize
+  );
+
+  // ✅ ID under QR
+  doc.setFontSize(8);
+  doc.text(
+    item.InstanceID,
+    x + padding,
+    y + padding + qrSize + 0.15
+  );
+
+  // ✅ RIGHT SIDE TEXT
+  const textX = x + 1.5;
+  let textY = y + padding;
+
+  doc.setFontSize(10);
+
+  // Helper for clipped text
+  function drawClipped(text, maxWidth) {
+    const lines = doc.splitTextToSize(text || "", maxWidth);
+    lines.slice(0, 2).forEach(line => {
+      doc.text(line, textX, textY);
+      textY += 0.25;
+    });
+  }
+
+  drawClipped(item.Label, 2.3);
+  drawClipped(item.DateCreated, 2.3);
+  drawClipped(item.Notes, 2.3);
+}
 
 
 </script>
