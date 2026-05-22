@@ -520,6 +520,13 @@ function toggleMode() {
   } else {
     btn.textContent = "🔍";
     document.body.classList.remove("select-mode");
+    
+    // Clear the selection.
+    for (const i of selectedItems) {
+      const iRow = document.getElementByName("row-" + i);
+      iRow.classList.remove("selected-row");
+    }
+    selectedItems.clear();
   }
 }
 
