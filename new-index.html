@@ -158,8 +158,8 @@ function renderFoodInstanceList() {
   }
 
   const sorted = [...working].sort((a, b) => {
-    const at = a.Date ? parseDate(a.Date);
-    const bt = b.Date ? parseDate(b.Date);
+    const at = a.Date ? parseDate(a.Date) : 0;
+    const bt = b.Date ? parseDate(b.Date) : 0;
     return inventorySort.direction === 'asc' ? at - bt : bt - at;
   });
 
