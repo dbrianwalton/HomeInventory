@@ -94,6 +94,7 @@ const qrVersion = "1.0";
 
 let interactionMode = "browse";  // "browse" | "select"
 let isDragging = false;
+let didDrag = false;
 let dragAction = null;  // "add" | "remove" | null
 
 let inventorySort = {
@@ -524,15 +525,19 @@ function toggleMode() {
 function handleRowClick(event, id) {
   if (interactionMode === "browse") {
     showFoodInstance(id);
-  } else {
-    toggleRowSelection(event, id);
+    return;
   }
+  
+  if (didDrag) return;
+
+  toggleRowSelection(event, id);
 }
 
 function handleRowMouseDown(event, rowEl) {
   if (interactionMode !== "select") return;
 
   isDragging = true;
+  didDrag = false;
 
   const id = rowEl.dataset.id;
 
@@ -550,18 +555,11 @@ function handleRowMouseDown(event, rowEl) {
   updateSelectionUI();
 }
 
-function handleRowMouseDown(event, rowEl) {
-  if (interactionMode !== "select") return;
-
-  isDragging = true;
-
-  const id = rowEl.dataset.id;
-
-  toggleRowSelection(event, id);
-}
 
 function handleRowMouseOver(event, rowEl) {
   if (interactionMode !== "select" || !isDragging || !dragAction) return;
+
+  didDrag = true;
 
   const id = rowEl.dataset.id;
 
@@ -585,6 +583,7 @@ function handleRowMouseOver(event, rowEl) {
 document.addEventListener("mouseup", () => {
   isDragging = false;
   dragAction = null;
+  didDrag = false;
 });
 
 function toggleRowSelection(event, id) {
