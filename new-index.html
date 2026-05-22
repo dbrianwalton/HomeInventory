@@ -484,7 +484,7 @@ async function generateLabelsPDF() {
     return;
   }
 
-  const labelsPerPage = 8;
+  const labelsPerPage = 10;
   const labelWidth = 4;
   const labelHeight = 2;
 
@@ -516,6 +516,11 @@ async function generateLabelsPDF() {
 async function drawLabel(doc, item, x, y) {
   const padding = 0.125; // 1/8 inch
   const qrSize = 1.2;
+  
+  // ✅ Draw outer label boundary
+  doc.setDrawColor(180);   // light gray for debugging
+  doc.setLineWidth(0.01);
+  doc.rect(x, y, labelWidth, labelHeight);
 
   // QR canvas (temporary)
   const qrTemp = document.createElement("div");
@@ -537,7 +542,7 @@ async function drawLabel(doc, item, x, y) {
   );
 
   // ✅ ID under QR
-  doc.setFontSize(8);
+  doc.setFontSize(12);
   doc.text(
     item.InstanceID,
     x + padding,
@@ -548,19 +553,34 @@ async function drawLabel(doc, item, x, y) {
   const textX = x + 1.5;
   let textY = y + padding;
 
-  doc.setFontSize(10);
-
   // Helper for clipped text
-  function drawClipped(text, maxWidth) {
-    const lines = doc.splitTextToSize(text || "", maxWidth);
-    lines.slice(0, 2).forEach(line => {
+  function drawClipped(text, maxWidth, maxLines = 2) {
+    const lines = doc.splitTextToSize(text || "", maxWidth).slice(0, maxLines);
+
+    lines.forEach(line => {
       doc.text(line, textX, textY);
-      textY += 0.25;
+
+      // Use actual text height for spacing
+      const dims = doc.getTextDimensions(line);
+      textY += dims.h + 0.05; // small padding between lines
     });
+
+    // Add a little extra spacing between sections (Label / Date / Notes)
+    textY += 0.05;
   }
 
+  // LABEL (bold + larger)
+  doc.setFont(undefined, "bold");
+  doc.setFontSize(14);
   drawClipped(item.Label, 2.3);
-  drawClipped(item.DateCreated, 2.3);
+
+  // DATE (normal + medium)
+  doc.setFont(undefined, "normal");
+  doc.setFontSize(11);
+  drawClipped(item.Date, 2.3, 1);   // usually single line
+
+  // NOTES (smaller)
+  doc.setFontSize(10);
   drawClipped(item.Notes, 2.3);
 }
 
