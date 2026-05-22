@@ -555,12 +555,12 @@ async function drawLabel(doc, item, x, y) {
   );
 
   // ✅ ID under QR and centered
-  const idDims = doc.getTextDimensions(item.InstanceID);
   doc.setFontSize(12);
+  const idDims = doc.getTextDimensions(item.InstanceID);
   doc.text(
     item.InstanceID,
     x + padding + (qrSize - idDims.w)/2,
-    y + padding + qrSize + idDims.v + 0.1
+    y + padding + qrSize + idDims.h + 0.1
   );
 
   // ✅ RIGHT SIDE TEXT
