@@ -16,20 +16,30 @@ window._eventCache = null;
 
 async function initAuth() {
   return new Promise((resolve) => {
+
     const tokenClient = google.accounts.oauth2.initTokenClient({
       client_id: CLIENT_ID,
       scope: SCOPES,
       callback: (response) => {
-        accessToken = response.access_token;
-        resolve();
+
+        // If token came back
+        if (response.access_token) {
+          accessToken = response.access_token;
+          resolve();
+        } else {
+          console.warn("Token missing — retrying with consent");
+
+          // Fallback: force consent prompt
+          tokenClient.requestAccessToken({ prompt: "consent" });
+        }
       }
     });
 
-    tokenClient.requestAccessToken({
-      prompt: ""
-    });
+    // FIRST: try silent
+    tokenClient.requestAccessToken({ prompt: "" });
   });
 }
+
 
 /* ---------- API FETCH ---------- */
 
