@@ -225,6 +225,9 @@ function renderFoodInstanceList() {
         onmousedown="handleRowMouseDown(event, this)"
         onmouseover="handleRowMouseOver(event, this)"
         onclick="handleRowClick(event, '${i.InstanceID}')"
+        ontouchstart="handleTouchStart(event)"
+        ontouchmove="handleTouchMove(event)"
+        ontouchend="handleTouchEnd(event)"
       >
         <td>${i.Date || ''}</td>
         <td>${i.InstanceID}</td>
@@ -582,6 +585,74 @@ document.addEventListener("mouseup", () => {
   dragAction = null;
   didDrag = false;
 });
+
+let touchTimer;
+
+
+function handleTouchStart(event) {
+  if (interactionMode !== "select") return;
+
+  isDragging = true;
+  touchTimer = setTimeout(() => {
+    toggleMode();  // enter select mode
+  }, 400);
+
+  const rowEl = event.currentTarget;
+  const id = rowEl.dataset.id;
+
+  // same as mousedown logic
+  if (selectedItems.has(id)) {
+    dragAction = "remove";
+    selectedItems.delete(id);
+    rowEl.classList.remove("selected-row");
+  } else {
+    dragAction = "add";
+    selectedItems.add(id);
+    rowEl.classList.add("selected-row");
+  }
+
+  updateSelectionUI();
+}
+
+function handleTouchMove(event) {
+  if (interactionMode !== "select" || !isDragging || !dragAction) return;
+
+  // ✅ find element under finger
+  const touch = event.touches[0];
+  const el = document.elementFromPoint(touch.clientX, touch.clientY);
+
+  const rowEl = el?.closest("tr");
+
+  if (!rowEl) return;
+
+  const id = rowEl.dataset.id;
+  if (!id) return;
+
+  if (dragAction === "add") {
+    if (!selectedItems.has(id)) {
+      selectedItems.add(id);
+      rowEl.classList.add("selected-row");
+      updateSelectionUI();
+    }
+  }
+
+  if (dragAction === "remove") {
+    if (selectedItems.has(id)) {
+      selectedItems.delete(id);
+      rowEl.classList.remove("selected-row");
+      updateSelectionUI();
+    }
+  }
+
+  // ✅ prevents scrolling while dragging
+  event.preventDefault();
+}
+
+function handleTouchEnd() {
+  isDragging = false;
+  dragAction = null;
+  clearTimeout(touchTimer);
+}
 
 function toggleRowSelection(event, id) {
   const row = document.getElementById(`row-${id}`);
