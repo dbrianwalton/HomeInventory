@@ -42,6 +42,8 @@
   </div>
 
   <div id="status" class="card">
+    <div id="status-controls"></div>
+    <div id="status-controls-chips"></div>
     <div id="status-message"></div>
   </div>
 
@@ -363,8 +365,16 @@ function applyDateFilter() {
 }
 
 function renderFilterUI() {
-  document.getElementById('status-message').innerHTML = `
-    <div>
+  document.getElementById('status-controls').innerHTML = `
+    <div class="filters-header-row">
+      <button
+        class="filters-toggle"
+        onclick="toggleFilters()"
+        aria-expanded="${filtersExpanded}"
+      >
+        ${filtersExpanded ? '▾ Filters' : '▸ Filters'}
+      </button>
+
       <input
         id="filterInput"
         type="text"
@@ -372,7 +382,20 @@ function renderFilterUI() {
         value="${inventoryFilter.text || ''}"
         oninput="applyFilter()"
       />
+
       <button onclick="clearTextFilter()">X</button>
+    </div>
+
+    <div id="filters-panel"
+        class="filters-panel ${filtersExpanded ? '' : 'hidden'}">
+
+      <div class="filter-row">
+        <span class="filter-label">Date:</span>
+        <input type="date" id="dateFrom" onchange="applyDateFilter()" />
+        <span class="date-range-sep">–</span>
+        <input type="date" id="dateTo" onchange="applyDateFilter()" />
+      </div>
+
     </div>
   `;
 }
