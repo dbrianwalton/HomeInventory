@@ -555,18 +555,31 @@ async function drawLabel(doc, item, x, y) {
     qrSize
   );
 
-  // ✅ ID under QR and centered
+  // ID and Date under QR and centered
   doc.setFontSize(12);
-  const idDims = doc.getTextDimensions(item.InstanceID);
+
+  // ID
+  let dims = doc.getTextDimensions(item.InstanceID);
+  let textY = y + padding + qrSize + dims.h + 0.1;
   doc.text(
     item.InstanceID,
-    x + padding + (qrSize - idDims.w)/2,
-    y + padding + qrSize + idDims.h + 0.1
+    x + padding + (qrSize - dims.w)/2,
+    textY
   );
 
-  // ✅ RIGHT SIDE TEXT
+  // Date
+  dims = doc.getTextDimensions(item.Date);
+  textY += dims.h + 0.05;
+  doc.text(
+    item.Date,
+    x + padding + (qrSize - dims.w)/2,
+    textY
+  );
+
+
+  // RIGHT SIDE TEXT
   const textX = x + 1.5;
-  let textY = y + padding;
+  textY = y + padding;
 
   // Helper for clipped text
   function drawClipped(text, maxWidth, maxLines = 2) {
@@ -589,14 +602,15 @@ async function drawLabel(doc, item, x, y) {
   doc.setFontSize(14);
   drawClipped(item.Label, 2.3);
 
-  // DATE (normal + medium)
+  // KEYWORDS and NOTES (smaller)
   doc.setFont(undefined, "normal");
-  doc.setFontSize(11);
-  drawClipped(item.Date, 2.3, 1);   // usually single line
-
-  // NOTES (smaller)
-  doc.setFontSize(10);
-  drawClipped(item.Notes, 2.3);
+  doc.setFontSize(12);
+  if (item.Keywords) {
+    drawClipped(item.Keywords, 2.3);
+  }
+  if (item.Notes) {
+    drawClipped(item.Notes, 2.3);
+  }
 }
 
 
