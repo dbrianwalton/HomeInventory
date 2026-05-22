@@ -36,16 +36,15 @@
 
   <button id="cameraButton" onclick="startScanner()">📷</button>
   <button id="labelButton" onclick="openLabelPanel()">🏷️</button>
-  <button id="modeButton" onclick="toggleMode()">🔍</button>
-  <div id="selectionCount"></div>
+  <div class="mode-wrapper">
+    <button id="modeButton" onclick="toggleMode()">🔍</button>
+    <div id="selectionCount"></div>
+  </div>
 
   <div class="card nav-tabs">
     <button onclick="showInventory()">Inventory</button>
     <button onclick="showStorage()">Storage</button>
     <button onclick="showEvents()">Events</button>
-    <button id="printBtn" onclick="generateLabelsPDF()">
-      Print Labels (0)
-    </button>
   </div>
 
   <div id="status" class="card">
