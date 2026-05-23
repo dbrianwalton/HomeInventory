@@ -353,11 +353,17 @@ function renderTable({
   tbody.addEventListener("click", (e) => {
     const row = e.target.closest("tr");
     if (!row) return;
-
+    if (isDragging) return;
+    
     const id = row.dataset.id;
 
-    if (!enableSelection && onRowClick) {
-      onRowClick(e, id);
+    if (!enableSelection) {
+      onRowClick?.(e, id);
+    } else {
+      // Only allow navigation in browse mode
+      if (interactionMode === "browse") {
+        onRowClick?.(e, id);
+      }
     }
   });
 
