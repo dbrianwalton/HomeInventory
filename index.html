@@ -118,6 +118,8 @@ let currentView = "food-list"; // "inventory" | "item"
 let interactionMode = "browse";  // "browse" | "select"
 let itemMode = "view"; // "view" | "edit"
 
+let navStack = [];
+
 let originalItem = null;
 let currentItem = null;
 let isDirty = false;
@@ -229,7 +231,51 @@ function clearSettings() {
 
 /* ---------- NAV ---------- */
 
+function pushView() {
+  navStack.push({
+    currentView,
+    currentItem: currentItem ? { ...currentItem } : null,
+    itemMode
+  });
+}
+
+function goBack() {
+  if (!navStack.length) {
+    if (currentItem?.InstanceID?.startsWith("FI")) {
+      showInventory();
+      return;
+    }
+
+    if (currentItem?.StorageLocationID?.startsWith("SL")) {
+      showStorage();
+      return;
+    }
+    
+    showInventory();
+    return;
+  }
+
+  const prev = navStack.pop();
+
+  currentView = prev.currentView;
+  currentItem = prev.currentItem;
+  itemMode = prev.itemMode;
+
+  updateModeButton();
+
+  if (currentView === "inventory") {
+    renderHome();
+  } else if (currentView === "item") {
+    renderFoodInstanceDetail();
+  } else if (currentView === "storage") {
+    renderStorageDetail();
+  } else if (currentView === "storage-list") {
+    renderStorageList();
+  }
+}
+
 function showInventory() {
+  navStack = [];
   clearSelection();
 
   activeTab = 'inventory';
@@ -242,12 +288,14 @@ function showInventory() {
 }
 
 function showEvents() {
+  navStack = [];
   clearSelection();
   activeTab = 'events';
   renderEventList();
 }
 
 function showStorage() {
+  navStack = [];
   clearSelection();
 
   activeTab = 'storage';
@@ -361,6 +409,8 @@ function renderFoodInstanceList() {
 
 
 function showFoodInstance(id) {
+  pushView();
+
   currentView = "food-item";
 
   document.getElementById("modeButton").style.display = "block";
@@ -477,7 +527,7 @@ function renderFoodInstanceDetail() {
           itemMode === "view"
             ? `
               <button onclick="enterEditMode()">Edit</button>
-              <button onclick="showInventory()">Close</button>
+              <button onclick="goBack()">Close</button>
             `
             : `
               <button onclick="saveFoodInstance()">Save</button>
@@ -594,6 +644,7 @@ function renderStorageList() {
 
 
 function showStorageLocation(id) {
+  pushView();
   currentView = "storage-item";
 
   const item = window._storageMap[id];
@@ -642,7 +693,7 @@ function renderStorageDetail() {
           itemMode === "view"
             ? `
               <button onclick="enterEditMode()">Edit</button>
-              <button onclick="showStorage()">Close</button>
+              <button onclick="goBack()">Close</button>
             `
             : `
               <button onclick="saveStorage()">Save</button>
