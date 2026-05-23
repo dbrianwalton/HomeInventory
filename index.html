@@ -624,7 +624,7 @@ function renderStorageList() {
         class="${selectedItems.has(s.StorageLocationID) ? 'selected-row' : ''}"
         onmousedown="handleRowMouseDown(event, this)"
         onmouseover="handleRowMouseOver(event, this)"
-        onclick="handleRowClick('${s.StorageLocationID}')"
+        onclick="handleRowClick(event, '${s.StorageLocationID}')"
         ontouchstart="handleTouchStart(event)"
         ontouchmove="handleTouchMove(event)"
         ontouchend="handleTouchEnd(event)"
