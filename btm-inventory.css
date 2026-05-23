@@ -125,6 +125,40 @@ button {
   cursor: pointer;
 }
 
+/* ------------- SETTINGS ----------- */
+
+.settings-panel {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  z-index: 2000;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.settings-panel.hidden {
+  display: none;
+}
+
+.settings-content {
+  background: white;
+  padding: 1rem;
+  border-radius: 10px;
+  width: 320px;
+}
+
+.settings-content input {
+  width: 100%;
+  margin-bottom: 0.5rem;
+}
+
+.settings-actions {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 1rem;
+}
 /* ---------- TOP FEATURE BUTTONS ---------- */
 
 #settingsButton {
