@@ -2,7 +2,6 @@
 
 const CLIENT_ID = "364484300168-cjutfpntqunv3sv7ailg2nv51v8581kj.apps.googleusercontent.com";
 const SCOPES = "https://www.googleapis.com/auth/spreadsheets";
-const SHEET_ID = "1jJlqRGXN93MxOVB2kokgls_qCWaErrnx-kvytYDeeU4";
 
 /* ---------- STATE ---------- */
 
@@ -44,7 +43,7 @@ async function initAuth() {
 /* ---------- API FETCH ---------- */
 
 async function sheetFetch(range) {
-  const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${range}`;
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${getSheetId()}/values/${range}`;
 
   const res = await fetch(url, {
     headers: {
@@ -120,7 +119,7 @@ async function updateFoodInstance(instanceID, changes) {
 
   const rowNumber = index + 2; // +2 (header + 1-based)
 
-  const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/FoodInstances!A${rowNumber}:Z${rowNumber}?valueInputOption=USER_ENTERED`;
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${getSheetId()}/values/FoodInstances!A${rowNumber}:Z${rowNumber}?valueInputOption=USER_ENTERED`;
 
   const res = await fetch(url, {
     method: "PUT",
@@ -163,7 +162,7 @@ async function updateStorageLocation(id, changes) {
 
   const rowNumber = index + 2; // +2 (header + 1-based)
 
-  const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/StorageLocations!A${rowNumber}:Z${rowNumber}?valueInputOption=USER_ENTERED`;
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${getSheetId()}/values/StorageLocations!A${rowNumber}:Z${rowNumber}?valueInputOption=USER_ENTERED`;
 
   const res = await fetch(url, {
     method: "PUT",

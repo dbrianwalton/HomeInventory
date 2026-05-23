@@ -34,10 +34,11 @@
 
   <h1 id="app-title">Inventory</h1>
 
-  <button id="cameraButton" onclick="startScanner()">📷</button>
-  <button id="labelButton" onclick="openLabelPanel()">🏷️</button>
+  <button id="settingsButton" title="Settings" onclick="openSettings()">⚙️</button>
+  <button id="cameraButton" title="QR reader" onclick="startScanner()">📷</button>
+  <button id="labelButton" title="Labels" onclick="openLabelPanel()">🏷️</button>
   <div class="mode-wrapper">
-    <button id="modeButton" onclick="toggleMode()">🔍</button>
+    <button id="modeButton" title="Mode" onclick="toggleMode()">🔍</button>
     <div id="selectionCount"></div>
   </div>
 
@@ -85,6 +86,22 @@
     </div>
   </div>
 
+  <div id="settingsPanel" class="settings-panel hidden">
+    <div class="settings-content">
+
+      <h3>Settings ⚙️</h3>
+
+      <label>Google Sheet ID</label>
+      <input id="settings-sheetId" placeholder="Paste Sheet URL or ID" />
+
+      <div class="settings-actions">
+        <button onclick="saveSettings()">Save</button>
+        <button onclick="closeSettings()">Cancel</button>
+      </div>
+
+    </div>
+  </div>
+
 <script>
 /* ---------- APP STATE ---------- */
 
@@ -127,10 +144,79 @@ let labelStartIndex = 0;
 /* ---------- INIT ---------- */
 
 window.onload = async () => {
+  if (!getSheetId()) {
+    openSettings();
+    return;
+  }
+
   await initAuth();  // OAuth from external JS
+
   await loadAllData();
   renderHome();
 };
+
+function promptForSheetId() {
+  const raw = prompt("Enter your Google Sheet URL or ID:");
+  const id = extractSheetId(raw);
+
+  if (!id) {
+    alert("A valid Sheet ID is required.");
+    return;
+  }
+
+  localStorage.setItem("sheetId", id.trim());
+
+  location.reload();
+}
+
+/* ---------- SETTINGS ---------- */
+
+function getSheetId() {
+  return localStorage.getItem("sheetId");
+}
+
+function openSettings() {
+  const panel = document.getElementById("settingsPanel");
+
+  // preload current values
+  document.getElementById("settings-sheetId").value =
+    getSheetId() || "";
+
+  document.getElementById("settings-clientId").value =
+    getClientId() || "";
+
+  panel.classList.remove("hidden");
+}
+
+function closeSettings() {
+  document.getElementById("settingsPanel").classList.add("hidden");
+}
+
+function extractSheetId(input) {
+  const match = input.match(/\/d\/([a-zA-Z0-9-_]+)/);
+  return match ? match[1] : input;
+}
+
+function saveSettings() {
+  const raw = document.getElementById("settings-sheetId").value;
+
+  const sheetId = extractSheetId(raw);
+
+  if (!sheetId) {
+    alert("Sheet ID is required");
+    return;
+  }
+
+  localStorage.setItem("sheetId", sheetId);
+
+  closeSettings();
+  location.reload();
+}
+
+function clearSettings() {
+  localStorage.removeItem("sheetId");
+  location.reload();
+}
 
 /* ---------- NAV ---------- */
 
