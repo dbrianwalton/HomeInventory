@@ -57,6 +57,7 @@ h1 {
 .card.view-mode textarea {
   border: none;
   background: transparent;
+  font-size: 1em;
   font-weight: normal;
   color: #333;
 }
@@ -69,8 +70,8 @@ h1 {
 .card.edit-mode input,
 .card.edit-mode textarea,
 .card.edit-mode select {
-  font-size: 1.15em;   /* ✅ larger text */
-  font-weight: 600;    /* ✅ slightly bold */
+  font-size: 1em;
+  font-weight: 500;
   border: 1px solid #2563eb;
   background: #f9fbff;
 }
