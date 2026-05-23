@@ -316,6 +316,68 @@ function renderHome() {
 
 /* ---------- INVENTORY ---------- */
 
+function renderTable({
+  container,
+  columns,
+  rows,
+  getRowId,
+  onRowClick,
+  enableSelection = false
+}) {
+  const html = `
+    <div class="card">
+      <div class="table-wrapper">
+        <table class="inventory-table">
+          <thead>
+            <tr>
+              ${columns.map(c => `<th>${c.label}</th>`).join('')}
+            </tr>
+          </thead>
+          <tbody>
+            ${rows.map(r => `
+              <tr data-id="${getRowId(r)}">
+                ${columns.map(c => `<td>${c.render(r) || ''}</td>`).join('')}
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+
+  container.innerHTML = html;
+
+  const tbody = container.querySelector("tbody");
+
+  // Row click
+  tbody.addEventListener("click", (e) => {
+    const row = e.target.closest("tr");
+    if (!row) return;
+
+    const id = row.dataset.id;
+
+    if (!enableSelection && onRowClick) {
+      onRowClick(e, id);
+    }
+  });
+
+  // Selection support only when enabled
+  if (enableSelection) {
+    tbody.addEventListener("mousedown", (e) => {
+      const row = e.target.closest("tr");
+      if (!row) return;
+      handleRowMouseDown(e, row);
+    });
+
+    tbody.addEventListener("mouseover", (e) => {
+      const row = e.target.closest("tr");
+      if (!row) return;
+      handleRowMouseOver(e, row);
+    });
+  }
+}
+
+
 function renderInventory() {
   renderFilterUI();
   renderFoodInstanceList();
@@ -367,44 +429,42 @@ function renderFoodInstanceList() {
     return inventorySort.direction === 'asc' ? at - bt : bt - at;
   });
 
-  let html = '<div class="card"><div class="table-wrapper"><table class="inventory-table">';
+  
+  const container = document.getElementById('content');
 
-  html += `<thead>
-    <tr>
-      <th onclick="toggleSort()">
-        Date ${inventorySort.direction === 'asc' ? '▲' : '▼'}
-      </th>
-      <th>ID</th>
-      <th>Description</th>
-      <th>Storage</th>
-      <th>Status</th>
-    </tr>
-  </thead><tbody>`;
-
-  sorted.forEach(i => {
-    const location = storageMap[i.StorageLocationID];
-    html += `
-      <tr
-        id="row-${i.InstanceID}"
-        data-id="${i.InstanceID}"
-        class="${selectedItems.has(i.InstanceID) ? 'selected-row' : ''}"
-        onmousedown="handleRowMouseDown(event, this)"
-        onmouseover="handleRowMouseOver(event, this)"
-        onclick="handleRowClick(event, '${i.InstanceID}')"
-        ontouchstart="handleTouchStart(event)"
-        ontouchmove="handleTouchMove(event)"
-        ontouchend="handleTouchEnd(event)"
-      >
-        <td>${i.Date || ''}</td>
-        <td>${i.InstanceID}</td>
-        <td>${i.Label}</td>
-        <td>${location?.Label || ''}</td>
-        <td>${i.Status}</td>
-      </tr>`;
+  renderTable({
+    container,
+    rows: sorted,
+    getRowId: r => r.InstanceID,
+    enableSelection: true,
+    onRowClick: (event, id) => {
+      if (interactionMode === "browse") {
+        showFoodInstance(id);
+      }
+    },
+    columns: [
+      {
+        label: "Date",
+        render: r => r.Date || ''
+      },
+      {
+        label: "ID",
+        render: r => r.InstanceID
+      },
+      {
+        label: "Description",
+        render: r => r.Label
+      },
+      {
+        label: "Storage",
+        render: r => window._storageMap?.[r.StorageLocationID]?.Label || ''
+      },
+      {
+        label: "Status",
+        render: r => r.Status
+      }
+    ]
   });
-
-  html += '</tbody></table></div></div>';
-  document.getElementById('content').innerHTML = html;
 }
 
 
@@ -604,41 +664,25 @@ function renderStorageList() {
     });
   }
 
-  let html = `<div class="card"><div class="table-wrapper"><table class="inventory-table">`;
+  
+const container = document.getElementById("content");
 
-  html += `
-    <thead>
-      <tr>
-        <th>ID</th>
-        <th>Label</th>
-        <th>Location</th>
-      </tr>
-    </thead><tbody>
-  `;
-
-  working.forEach(s => {
-    html += `
-      <tr
-        id="row-${s.StorageLocationID}"
-        data-id="${s.StorageLocationID}"
-        class="${selectedItems.has(s.StorageLocationID) ? 'selected-row' : ''}"
-        onmousedown="handleRowMouseDown(event, this)"
-        onmouseover="handleRowMouseOver(event, this)"
-        onclick="handleRowClick(event, '${s.StorageLocationID}')"
-        ontouchstart="handleTouchStart(event)"
-        ontouchmove="handleTouchMove(event)"
-        ontouchend="handleTouchEnd(event)"
-      >
-        <td>${s.StorageLocationID}</td>
-        <td>${s.Label}</td>
-        <td>${s.PhysicalLocation}</td>
-      </tr>
-    `;
+  renderTable({
+    container,
+    rows: working,
+    getRowId: r => r.StorageLocationID,
+    enableSelection: true,
+    onRowClick: (event, id) => {
+      if (interactionMode === "browse") {
+        showStorageLocation(id);
+      }
+    },
+    columns: [
+      { label: "ID", render: r => r.StorageLocationID },
+      { label: "Label", render: r => r.Label },
+      { label: "Location", render: r => r.PhysicalLocation }
+    ]
   });
-
-  html += `</tbody></table></div></div>`;
-
-  document.getElementById("content").innerHTML = html;
 }
 
 
@@ -664,47 +708,73 @@ function renderStorageDetail() {
 
   document.getElementById("cameraButton").disabled = (itemMode === "edit");
 
+  // Gather related food items
+  const related = (window._foodInstanceCache || [])
+    .filter(i => i.StorageLocationID === item.StorageLocationID)
+    .sort((a, b) => parseDate(b.Date) - parseDate(a.Date));
+
   let html = `
-    <div class="card ${itemMode === "edit" ? "edit-mode" : "view-mode"}">
+  <div class="card ${itemMode === "edit" ? "edit-mode" : "view-mode"}">
+    <h2>${item.StorageLocationID}</h2>
 
-      <h2>${item.StorageLocationID}</h2>
-
-      <div class="field-row">
-        <label>Label</label>
-        <input id="fld-label" value="${item.Label || ''}" ${readOnly}
-          ${itemMode === "edit" ? 'oninput="markDirty()"' : ''} />
-      </div>
-
-      <div class="field-row">
-        <label>Notes</label>
-        <input id="fld-notes" value="${item.Notes || ''}" ${readOnly}
-          ${itemMode === "edit" ? 'oninput="markDirty()"' : ''} />
-      </div>
-
-      <div class="field-row">
-        <label>Physical Location</label>
-        <input id="fld-physical" value="${item.PhysicalLocation || ''}" ${readOnly}
-          ${itemMode === "edit" ? 'oninput="markDirty()"' : ''} />
-      </div>
-
-      <div style="margin-top: 1rem;">
-        ${
-          itemMode === "view"
-            ? `
-              <button onclick="enterEditMode()">Edit</button>
-              <button onclick="goBack()">Close</button>
-            `
-            : `
-              <button onclick="saveStorage()">Save</button>
-              <button onclick="cancelEdit()">Cancel</button>
-            `
-        }
-      </div>
-
+    <div class="field-row">
+      <label>Label</label>
+      <input id="fld-label" value="${item.Label || ''}" ${readOnly}
+        ${itemMode === "edit" ? 'oninput="markDirty()"' : ''} />
     </div>
+
+    <div class="field-row">
+      <label>Notes</label>
+      <input id="fld-notes" value="${item.Notes || ''}" ${readOnly}
+        ${itemMode === "edit" ? 'oninput="markDirty()"' : ''} />
+    </div>
+
+    <div class="field-row">
+      <label>Physical Location</label>
+      <input id="fld-physical" value="${item.PhysicalLocation || ''}" ${readOnly}
+        ${itemMode === "edit" ? 'oninput="markDirty()"' : ''} />
+    </div>
+
+    <!-- Related FoodInstances -->
+    <div id="related-food"></div>
+  `;
+
+  html += `
+    <div style="margin-top: 1rem;">
+      ${
+        itemMode === "view"
+        ? `
+          <button onclick="enterEditMode()">Edit</button>
+          <button onclick="goBack()">Close</button>
+        `
+        : `
+          <button onclick="saveStorage()">Save</button>
+          <button onclick="cancelEdit()">Cancel</button>
+        `
+      }
+    </div>
+  </div>
   `;
 
   document.getElementById("content").innerHTML = html;
+
+  const relatedContainer = document.getElementById("related-food");
+
+  renderTable({
+    container: relatedContainer,
+    rows: related,
+    getRowId: r => r.InstanceID,
+    enableSelection: false,
+    onRowClick: (event, id) => {
+      showFoodInstance(id);
+    },
+    columns: [
+      { label: "Date", render: r => r.Date || '' },
+      { label: "ID", render: r => r.InstanceID },
+      { label: "Description", render: r => r.Label || '' },
+      { label: "Status", render: r => r.Status || '' }
+    ]
+});
 }
 
 async function saveStorage() {
