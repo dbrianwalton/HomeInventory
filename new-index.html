@@ -712,16 +712,18 @@ function cancelEdit() {
   updateModeButton();
   
   // reload original
+  let original;
   switch (currentView) {
     case "food-item":
-      const original = window._foodInstanceCache.find(i => i.InstanceID === currentItem.InstanceID);
+      original = window._foodInstanceCache.find(i => i.InstanceID === currentItem.InstanceID);
       currentItem = { ...original };
       renderFoodInstanceDetail();
       break;
     case "storage-item":
-      const original = window._storageLocationCache.find(i => i.StorageLocationID === currentItem.StorageLocationID);
+      original = window._storageLocationCache.find(i => i.StorageLocationID === currentItem.StorageLocationID);
       currentItem = { ...original };
       renderStorageDetail();
+      break;
   } 
 }
 
