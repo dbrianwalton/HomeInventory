@@ -147,6 +147,7 @@ let filtersExpanded = false;
 let selectedItems = new Set();
 
 let labelStartIndex = 0;
+let labelDrawBoundary = false;
 
 /* ---------- INIT ---------- */
 
@@ -1663,19 +1664,21 @@ async function drawLabel(doc, item, x, y) {
   const labelWidth = 4;
   const labelHeight = 2;
 
-  // ✅ Draw outer label boundary
-  doc.setDrawColor(180);   // light gray for debugging
-  doc.setLineWidth(0.01);
-  doc.rect(x, y, labelWidth, labelHeight);
+  if (labelDrawBoundary) {
+    // Draw outer label boundary
+    doc.setDrawColor(180);   // light gray for debugging
+    doc.setLineWidth(0.01);
+    doc.rect(x, y, labelWidth, labelHeight);
 
-  // ✅ Draw inner printable area (optional, inset by padding)
-  doc.setDrawColor(220);
-  doc.rect(
-    x + padding,
-    y + padding,
-    labelWidth - (2 * padding),
-    labelHeight - (2 * padding)
-  );
+    // Draw inner printable area (optional, inset by padding)
+    doc.setDrawColor(220);
+    doc.rect(
+      x + padding,
+      y + padding,
+      labelWidth - (2 * padding),
+      labelHeight - (2 * padding)
+    );
+  }
 
   const qrSize = 1.2;
 
