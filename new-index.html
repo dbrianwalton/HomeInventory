@@ -92,7 +92,11 @@ let activeTab = "inventory";
 const appID = "BTM-Inventory";
 const qrVersion = "1.0";
 
+let currentView = "inventory"; // "inventory" | "item"
 let interactionMode = "browse";  // "browse" | "select"
+let itemMode = "view"; // "view" | "edit"
+let currentItem = null;
+
 let isDragging = false;
 let didDrag = false;
 let dragAction = null;  // "add" | "remove" | null
@@ -124,7 +128,11 @@ window.onload = async () => {
 
 function showInventory() {
   activeTab = 'inventory';
+  currentView = "inventory";
+
   document.getElementById("modeButton").style.display = "block";
+  
+  updateModeButton();
   renderHome();
 }
 
@@ -244,17 +252,156 @@ function renderFoodInstanceList() {
 /* ---------- DETAIL ---------- */
 
 function showFoodInstance(id) {
-  document.getElementById("modeButton").style.display = "none";
+  currentView = "item";
+
+  document.getElementById("modeButton").style.display = "block";
 
   const item = window._foodInstanceCache.find(i => i.InstanceID === id);
   if (!item) return;
 
-  document.getElementById("content").innerHTML = `
-    <h2>${item.InstanceID}</h2>
-    <p>${item.Label}</p>
-    <button onclick="toggleQRCode('${item.InstanceID}')">QR</button>
-    <div id="qr-code-${item.InstanceID}"></div>
+  currentItem = { ...item };
+  itemMode = "view";
+
+  updateModeButton();
+  renderFoodInstanceDetail();
+}
+
+function renderFoodInstanceDetail() {
+  const item = currentItem;
+  const storage = window._storageMap[item.StorageLocationID];
+
+  const readOnly = itemMode === "view" ? "readonly" : "";
+
+  let html = `
+    <div class="card">
+
+      <h2>${item.InstanceID}</h2>
+
+      <label>ID</label>
+      <input value="${item.InstanceID}" readonly />
+
+      <label>Label</label>
+      <input id="fld-label" value="${item.Label || ''}" ${readOnly} />
+
+      <label>Keywords</label>
+      <input id="fld-keywords" value="${item.Keywords || ''}" ${readOnly} />
+
+      <label>Notes</label>
+      <textarea id="fld-notes" ${readOnly}>${item.Notes || ''}</textarea>
+
+      <label>Size</label>
+      <input id="fld-size" value="${item.Size || ''}" ${readOnly} />
   `;
+  html += `<label>Storage Type</label>`;
+
+  if (itemMode === "view") {
+    html += `<div>${item.StorageType || ''}</div>`;
+  } else {
+    html += `
+      <select id="fld-storageType">
+        ${["Freeze-Dried","Frozen","Bottled","Canned","Boxed","Other"]
+          .map(opt => `
+            <option ${item.StorageType === opt ? "selected" : ""}>${opt}</option>
+          `).join('')}
+      </select>
+    `;
+  }
+  const storageText = storage
+    ? `${storage.Label} (${storage.PhysicalLocation})`
+    : "Unassigned";
+
+  html += `<label>Storage Location</label>`;
+
+  if (itemMode === "view") {
+    html += `
+      <button onclick="showStorageLocation('${item.StorageLocationID}')">
+        ${storageText}
+      </button>
+    `;
+  } else {
+    html += `
+      <select id="fld-storageLocation">
+        ${(window._storageLocationCache || []).map(s => `
+          <option value="${s.StorageLocationID}"
+            ${s.StorageLocationID === item.StorageLocationID ? "selected" : ""}>
+            ${s.Label} (${s.PhysicalLocation})
+          </option>
+        `).join('')}
+      </select>
+    `;
+  }
+
+  html += `<div style="margin-top: 1rem;">`;
+
+  if (itemMode === "view") {
+    html += `
+      <button onclick="enterEditMode()">Edit</button>
+      <button onclick="showInventory()">Back</button>
+    `;
+  } else {
+    html += `
+      <button onclick="saveItem()">Save</button>
+      <button onclick="cancelEdit()">Cancel</button>
+    `;
+  }
+
+  html += `</div></div>`;
+
+  document.getElementById("content").innerHTML = html;
+}
+
+function enterEditMode() {
+  itemMode = "edit";
+  renderFoodInstanceDetail();
+}
+
+function cancelEdit() {
+  itemMode = "view";
+
+  // ✅ reload original
+  const original = window._foodInstanceCache.find(i => i.InstanceID === currentItem.InstanceID);
+  currentItem = { ...original };
+
+  renderFoodInstanceDetail();
+}
+
+function saveItem() {
+  currentItem.Label = document.getElementById("fld-label").value;
+  currentItem.Keywords = document.getElementById("fld-keywords").value;
+  currentItem.Notes = document.getElementById("fld-notes").value;
+  currentItem.Size = document.getElementById("fld-size").value;
+
+  currentItem.StorageType =
+    document.getElementById("fld-storageType")?.value || currentItem.StorageType;
+
+  currentItem.StorageLocationID =
+    document.getElementById("fld-storageLocation")?.value || currentItem.StorageLocationID;
+
+  showSavePreview(currentItem);
+
+  itemMode = "view";
+  renderFoodInstanceDetail();
+}
+
+function showSavePreview(data) {
+  const div = document.createElement("div");
+
+  div.style.position = "fixed";
+  div.style.top = "20px";
+  div.style.left = "50%";
+  div.style.transform = "translateX(-50%)";
+  div.style.background = "white";
+  div.style.border = "1px solid #ccc";
+  div.style.padding = "10px";
+  div.style.zIndex = "2000";
+
+  div.innerHTML = `
+    <strong>Would save:</strong><br/>
+    <pre>${JSON.stringify(data, null, 2)}</pre>
+    <button onclick="this.parentElement.remove()">Close</button>
+  `;
+
+  document.body.appendChild(div);
 }
 
 /* ---------- STORAGE ---------- */
@@ -510,24 +657,22 @@ function toggleSort() {
 /* -------- MODE CONTROL --------------*/
 
 function toggleMode() {
-  interactionMode = interactionMode === "browse" ? "select" : "browse";
 
-  const btn = document.getElementById("modeButton");
+  // Inventory behavior
+  if (currentView === "inventory") {
+    interactionMode = interactionMode === "browse" ? "select" : "browse";
 
-  if (interactionMode === "select") {
-    btn.textContent = "✅";
-    document.body.classList.add("select-mode");
-  } else {
-    btn.textContent = "🔍";
-    document.body.classList.remove("select-mode");
-
-    // Clear the selection.
-    for (const i of selectedItems) {
-      const iRow = document.getElementById("row-" + i);
-      iRow.classList.remove("selected-row");
-    }
-    selectedItems.clear();
+    document.body.classList.toggle("select-mode", interactionMode === "select");
   }
+
+  // Item behavior
+  if (currentView === "item") {
+    itemMode = itemMode === "view" ? "edit" : "view";
+
+    renderFoodInstanceDetail();  // re-render fields
+  }
+
+  updateModeButton();
 }
 
 /* ----------- SELECTING -------------- */
@@ -681,6 +826,18 @@ function updateSelectionUI() {
   const countEl = document.getElementById('selectionCount');
   if (countEl) {
     countEl.textContent = `${selectedItems.size}`;
+  }
+}
+
+function updateModeButton() {
+  const btn = document.getElementById("modeButton");
+
+  if (currentView === "inventory") {
+    btn.textContent = interactionMode === "select" ? "✅" : "🔍";
+  }
+
+  if (currentView === "item") {
+    btn.textContent = itemMode === "edit" ? "✏️" : "👁️";
   }
 }
 
