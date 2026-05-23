@@ -70,7 +70,6 @@ h1 {
 .card.edit-mode input,
 .card.edit-mode textarea,
 .card.edit-mode select {
-  font-size: 1em;
   font-weight: 500;
   border: 1px solid #2563eb;
   background: #f9fbff;
@@ -93,9 +92,11 @@ h1 {
 }
 
 
-.field-row label {
+.field-row label
+.field-row select {
   flex: 0 0 auto;   /* ✅ only as wide as text */
   font-weight: 600;
+  font-size: 1em;
 }
 
 .field-row input {
@@ -107,6 +108,7 @@ h1 {
   border-radius: 6px;
 
   font-family: inherit;
+  font-size: 1em;
 }
 
 .field-row button {
