@@ -204,6 +204,11 @@ button {
   box-shadow: 0 2px 6px rgba(0,0,0,0.15);
 }
 
+
+#modeButton.dirty {
+  background: #fbbf24;
+}
+
 #selectionCount {
   position: absolute;
   top: -0.5rem;

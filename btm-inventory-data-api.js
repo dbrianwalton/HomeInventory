@@ -95,3 +95,43 @@ async function loadAllData() {
     loadEvents()
   ]);
 }
+
+/* ------------ SAVERS ---------------- */
+
+async function updateFoodInstance(instanceID, changes) {
+  // Find row index
+  const rows = await sheetFetch("FoodInstances!A1:Z");
+
+  const index = rows.findIndex(r => r.InstanceID === instanceID);
+  if (index === -1) {
+    throw new Error("Instance not found");
+  }
+
+  const headers = Object.keys(rows[0]);
+  const row = rows[index];
+
+  // Apply only changed fields
+  Object.entries(changes).forEach(([key, value]) => {
+    row[key] = value;
+  });
+
+  // Rebuild row in column order
+  const values = headers.map(h => row[h] || "");
+
+  const rowNumber = index + 2; // +2 (header + 1-based)
+
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/FoodInstances!A${rowNumber}:Z${rowNumber}?valueInputOption=USER_ENTERED`;
+
+  const res = await fetch(url, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      values: [values]
+    })
+  });
+
+  return res.json();
+}

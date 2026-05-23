@@ -95,7 +95,10 @@ const qrVersion = "1.0";
 let currentView = "inventory"; // "inventory" | "item"
 let interactionMode = "browse";  // "browse" | "select"
 let itemMode = "view"; // "view" | "edit"
+
+let originalItem = null;
 let currentItem = null;
+let isDirty = false;
 
 let isDragging = false;
 let didDrag = false;
@@ -259,6 +262,7 @@ function showFoodInstance(id) {
   const item = window._foodInstanceCache.find(i => i.InstanceID === id);
   if (!item) return;
 
+  originalItem = item;
   currentItem = { ...item };
   itemMode = "view";
 
@@ -296,6 +300,7 @@ function renderFoodInstanceDetail() {
                     ${s.Label} (${s.PhysicalLocation})
                   </option>
                 `).join('')}
+                ${itemMode === "edit" ? 'oninput="markDirty()"' : ''}
               </select>`
         }
       </div>
@@ -303,25 +308,33 @@ function renderFoodInstanceDetail() {
       <!-- Label -->
       <div class="field-row">
         <label>Label</label>
-        <input id="fld-label" value="${item.Label || ''}" ${readOnly} />
+        <input id="fld-label" value="${item.Label || ''}" ${readOnly} 
+        ${itemMode === "edit" ? 'oninput="markDirty()"' : ''}
+      />
       </div>
 
       <!-- Keywords -->
       <div class="field-row">
         <label>Keywords</label>
-        <input id="fld-keywords" value="${item.Keywords || ''}" ${readOnly} />
+        <input id="fld-keywords" value="${item.Keywords || ''}" ${readOnly} 
+        ${itemMode === "edit" ? 'oninput="markDirty()"' : ''}
+      />
       </div>
 
       <!-- Notes -->
       <div class="field-row">
         <label>Notes</label>
-        <input id="fld-notes" value="${item.Notes || ''}" ${readOnly} />
+        <input id="fld-notes" value="${item.Notes || ''}" ${readOnly} 
+        ${itemMode === "edit" ? 'oninput="markDirty()"' : ''}
+      />
       </div>
 
       <!-- Size -->
       <div class="field-row">
         <label>Size</label>
-        <input id="fld-size" value="${item.Size || ''}" ${readOnly} />
+        <input id="fld-size" value="${item.Size || ''}" ${readOnly} 
+        ${itemMode === "edit" ? 'oninput="markDirty()"' : ''}
+      />
       </div>
 
       <!-- Storage Type -->
@@ -337,6 +350,7 @@ function renderFoodInstanceDetail() {
                       ${opt}
                     </option>
                   `).join('')}
+                ${itemMode === "edit" ? 'oninput="markDirty()"' : ''}
               </select>`
         }
       </div>
@@ -361,13 +375,37 @@ function renderFoodInstanceDetail() {
   document.getElementById("content").innerHTML = html;
 }
 
+function getChangedFields(original, updated) {
+  const changes = {};
+
+  Object.keys(updated).forEach(key => {
+    if (updated[key] !== original[key]) {
+      changes[key] = updated[key];
+    }
+  });
+
+  return changes;
+}
+
+function markDirty() {
+  isDirty = true;
+  document.getElementById("modeButton")?.classList.add("dirty");
+}
+
+function clearDirty() {
+  isDirty = false;
+  document.getElementById("modeButton")?.classList.remove("dirty");
+}
+
 function enterEditMode() {
   itemMode = "edit";
+  clearDirty();
   renderFoodInstanceDetail();
 }
 
 function cancelEdit() {
   itemMode = "view";
+  clearDirty(); 
 
   // ✅ reload original
   const original = window._foodInstanceCache.find(i => i.InstanceID === currentItem.InstanceID);
@@ -376,7 +414,8 @@ function cancelEdit() {
   renderFoodInstanceDetail();
 }
 
-function saveItem() {
+async function saveItem() {
+
   currentItem.Label = document.getElementById("fld-label").value;
   currentItem.Keywords = document.getElementById("fld-keywords").value;
   currentItem.Notes = document.getElementById("fld-notes").value;
@@ -388,10 +427,35 @@ function saveItem() {
   currentItem.StorageLocationID =
     document.getElementById("fld-storageLocation")?.value || currentItem.StorageLocationID;
 
-  showSavePreview(currentItem);
+  const changes = getChangedFields(originalItem, currentItem);
 
-  itemMode = "view";
-  renderFoodInstanceDetail();
+  if (!Object.keys(changes).length) {
+    alert("No changes to save");
+    return;
+  }
+
+  try {
+    await updateFoodInstance(currentItem.InstanceID, changes);
+
+    // ✅ update local cache to reflect changes
+    const idx = window._foodInstanceCache.findIndex(
+      i => i.InstanceID === currentItem.InstanceID
+    );
+    if (idx !== -1) {
+      window._foodInstanceCache[idx] = { ...currentItem };
+    }
+
+    isDirty = false;
+
+    alert("Saved!");
+
+    itemMode = "view";
+    renderFoodInstanceDetail();
+
+  } catch (err) {
+    console.error(err);
+    alert("Error saving data");
+  }
 }
 
 function showSavePreview(data) {
@@ -672,18 +736,31 @@ function toggleMode() {
   // Inventory behavior
   if (currentView === "inventory") {
     interactionMode = interactionMode === "browse" ? "select" : "browse";
-
     document.body.classList.toggle("select-mode", interactionMode === "select");
+    updateModeButton();
   }
 
   // Item behavior
   if (currentView === "item") {
+    if (itemMode === "edit" && isDirty) {
+
+      const confirmed = confirm(
+        "You have unsaved changes.\n\nPress OK to discard the changes, or Cancel to stay in edit mode."
+      );
+
+      if (!confirmed) return;
+
+      // Discard changes
+      cancelEdit();
+      updateModeButton();
+      return;
+    }
+
     itemMode = itemMode === "view" ? "edit" : "view";
 
     renderFoodInstanceDetail();  // re-render fields
+    updateModeButton();
   }
-
-  updateModeButton();
 }
 
 /* ----------- SELECTING -------------- */
