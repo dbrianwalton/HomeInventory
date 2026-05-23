@@ -92,14 +92,14 @@ h1 {
 }
 
 
-.field-row label
-.field-row select {
+.field-row label {
   flex: 0 0 auto;   /* ✅ only as wide as text */
   font-weight: 600;
   font-size: 1em;
 }
 
-.field-row input {
+.field-row input,
+.field-row select {
   flex: 1;             /* ✅ fills remaining space */
   max-width: 400px;    /* ✅ limit width */
 
