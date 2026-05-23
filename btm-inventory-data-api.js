@@ -1,7 +1,7 @@
 /* ---------- CONFIG ---------- */
 
 const CLIENT_ID = "364484300168-cjutfpntqunv3sv7ailg2nv51v8581kj.apps.googleusercontent.com";
-const SCOPES = "https://www.googleapis.com/auth/spreadsheets.readonly";
+const SCOPES = "https://www.googleapis.com/auth/spreadsheets";
 const SHEET_ID = "1jJlqRGXN93MxOVB2kokgls_qCWaErrnx-kvytYDeeU4";
 
 /* ---------- STATE ---------- */
@@ -132,6 +132,11 @@ async function updateFoodInstance(instanceID, changes) {
       values: [values]
     })
   });
+
+  if (!res.ok) {
+    const errorText = await res.text();
+    throw new Error(`HTTP ${res.status}: ${errorText}`);
+  }
 
   return res.json();
 }

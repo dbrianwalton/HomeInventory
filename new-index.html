@@ -400,6 +400,7 @@ function clearDirty() {
 function enterEditMode() {
   itemMode = "edit";
   clearDirty();
+  updateModeButton();
   renderFoodInstanceDetail();
 }
 
@@ -411,6 +412,7 @@ function cancelEdit() {
   const original = window._foodInstanceCache.find(i => i.InstanceID === currentItem.InstanceID);
   currentItem = { ...original };
 
+  updateModeButton();
   renderFoodInstanceDetail();
 }
 
