@@ -564,6 +564,9 @@ function renderStorageList() {
         onmousedown="handleRowMouseDown(event, this)"
         onmouseover="handleRowMouseOver(event, this)"
         onclick="handleRowClick('${s.StorageLocationID}')"
+        ontouchstart="handleTouchStart(event)"
+        ontouchmove="handleTouchMove(event)"
+        ontouchend="handleTouchEnd(event)"
       >
         <td>${s.StorageLocationID}</td>
         <td>${s.Label}</td>
@@ -1115,9 +1118,6 @@ let touchTimer;
 
 function handleTouchStart(event) {
   if (interactionMode !== "select") {
-    touchTimer = setTimeout(() => {
-      toggleMode();  // enter select mode
-    }, 400);
     return;
   }
 
