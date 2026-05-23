@@ -831,11 +831,13 @@ function renderDetailForm(entityType, item) {
 function renderDetailActions() {
   const actions = DETAIL_ACTIONS[itemMode];
 
+  const buttons = actions.map(a =>
+    '<button data-action="' + a.action + '">' + a.label + '</button>'
+  ).join('');
+
   return `
     <div class="detail-actions">
-      ${actions.map(a => `
-        <button data-action="${autton>
-      `).join('')}
+      ${buttons}
     </div>
   `;
 }
