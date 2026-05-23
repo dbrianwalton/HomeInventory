@@ -272,93 +272,91 @@ function renderFoodInstanceDetail() {
 
   const readOnly = itemMode === "view" ? "readonly" : "";
 
+  const storageText = storage
+    ? `${storage.Label} (${storage.PhysicalLocation})`
+    : "Unassigned";
+
   let html = `
     <div class="card ${itemMode === "edit" ? "edit-mode" : "view-mode"}">
-  `;
-  html += `
+
       <h2>${item.InstanceID}</h2>
 
+      <!-- Storage Location -->
       <div class="field-row">
         <label>Storage Location</label>
-        <button onclick="showStorageLocation('${item.StorageLocationID}')">
-          ${storageText}
-        </button>
+        ${
+          itemMode === "view"
+            ? `<button onclick="showStorageLocation('${item.StorageLocationID}')">
+                ${storageText}
+              </button>`
+            : `<select id="fld-storageLocation">
+                ${(window._storageLocationCache || []).map(s => `
+                  <option value="${s.StorageLocationID}"
+                    ${s.StorageLocationID === item.StorageLocationID ? "selected" : ""}>
+                    ${s.Label} (${s.PhysicalLocation})
+                  </option>
+                `).join('')}
+              </select>`
+        }
       </div>
 
+      <!-- Label -->
       <div class="field-row">
         <label>Label</label>
         <input id="fld-label" value="${item.Label || ''}" ${readOnly} />
       </div>
 
+      <!-- Keywords -->
       <div class="field-row">
         <label>Keywords</label>
         <input id="fld-keywords" value="${item.Keywords || ''}" ${readOnly} />
       </div>
 
+      <!-- Notes -->
       <div class="field-row">
         <label>Notes</label>
-        <input id="fld-notes" ${readOnly}>${item.Notes || ''}</textarea>
+        <input id="fld-notes" value="${item.Notes || ''}" ${readOnly} />
       </div>
 
+      <!-- Size -->
       <div class="field-row">
         <label>Size</label>
         <input id="fld-size" value="${item.Size || ''}" ${readOnly} />
       </div>
+
+      <!-- Storage Type -->
+      <div class="field-row">
+        <label>Storage Type</label>
+        ${
+          itemMode === "view"
+            ? `<div>${item.StorageType || ''}</div>`
+            : `<select id="fld-storageType">
+                ${["Freeze-Dried","Frozen","Bottled","Canned","Boxed","Other"]
+                  .map(opt => `
+                    <option ${item.StorageType === opt ? "selected" : ""}>
+                      ${opt}
+                    </option>
+                  `).join('')}
+              </select>`
+        }
+      </div>
+
+      <div style="margin-top: 1rem;">
+        ${
+          itemMode === "view"
+            ? `
+              <button onclick="enterEditMode()">Edit</button>
+              <button onclick="showInventory()">Back</button>
+            `
+            : `
+              <button onclick="saveItem()">Save</button>
+              <button onclick="cancelEdit()">Cancel</button>
+            `
+        }
+      </div>
+
+    </div>
   `;
-  html += `<label>Storage Type</label>`;
-
-  if (itemMode === "view") {
-    html += `<div>${item.StorageType || ''}</div>`;
-  } else {
-    html += `
-      <select id="fld-storageType">
-        ${["Freeze-Dried","Frozen","Bottled","Canned","Boxed","Other"]
-          .map(opt => `
-            <option ${item.StorageType === opt ? "selected" : ""}>${opt}</option>
-          `).join('')}
-      </select>
-    `;
-  }
-  const storageText = storage
-    ? `${storage.Label} (${storage.PhysicalLocation})`
-    : "Unassigned";
-
-  html += `<label>Storage Location</label>`;
-
-  if (itemMode === "view") {
-    html += `
-      <button onclick="showStorageLocation('${item.StorageLocationID}')">
-        ${storageText}
-      </button>
-    `;
-  } else {
-    html += `
-      <select id="fld-storageLocation">
-        ${(window._storageLocationCache || []).map(s => `
-          <option value="${s.StorageLocationID}"
-            ${s.StorageLocationID === item.StorageLocationID ? "selected" : ""}>
-            ${s.Label} (${s.PhysicalLocation})
-          </option>
-        `).join('')}
-      </select>
-    `;
-  }
-
-  html += `<div style="margin-top: 1rem;">`;
-
-  if (itemMode === "view") {
-    html += `
-      <button onclick="enterEditMode()">Edit</button>
-      <button onclick="showInventory()">Back</button>
-    `;
-  } else {
-    html += `
-      <button onclick="saveItem()">Save</button>
-      <button onclick="cancelEdit()">Cancel</button>
-    `;
-  }
-
-  html += `</div></div>`;
 
   document.getElementById("content").innerHTML = html;
 }
