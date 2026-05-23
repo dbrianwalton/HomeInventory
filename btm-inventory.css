@@ -161,7 +161,7 @@ button {
 }
 /* ---------- TOP FEATURE BUTTONS ---------- */
 
-.top-button button {
+.top-button {
   position: fixed;
   width: 2.7rem;
 
@@ -176,7 +176,7 @@ button {
   z-index: 200;
 }
 
-.top-button button:hover {
+.top-button {
   background: #f3f4f6;
 }
 
