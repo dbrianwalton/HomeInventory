@@ -92,7 +92,7 @@ let activeTab = "inventory";
 const appID = "BTM-Inventory";
 const qrVersion = "1.0";
 
-let currentView = "inventory"; // "inventory" | "item"
+let currentView = "food-list"; // "inventory" | "item"
 let interactionMode = "browse";  // "browse" | "select"
 let itemMode = "view"; // "view" | "edit"
 
@@ -114,9 +114,14 @@ let inventoryFilter = {
   dateFrom: null,
   dateTo: null
 };
+let storageFilter = {
+  text: ''
+};
 
 let filtersExpanded = false;
+
 let selectedItems = new Set();
+
 let labelStartIndex = 0;
 
 /* ---------- INIT ---------- */
@@ -130,8 +135,10 @@ window.onload = async () => {
 /* ---------- NAV ---------- */
 
 function showInventory() {
+  clearSelection();
+
   activeTab = 'inventory';
-  currentView = "inventory";
+  currentView = "food-list";
 
   document.getElementById("modeButton").style.display = "block";
   
@@ -140,12 +147,17 @@ function showInventory() {
 }
 
 function showEvents() {
+  clearSelection();
   activeTab = 'events';
   renderEventList();
 }
 
 function showStorage() {
+  clearSelection();
+
   activeTab = 'storage';
+  currentView = "storage-list";
+
   renderStorageList();
 }
 
@@ -252,10 +264,9 @@ function renderFoodInstanceList() {
   document.getElementById('content').innerHTML = html;
 }
 
-/* ---------- DETAIL ---------- */
 
 function showFoodInstance(id) {
-  currentView = "item";
+  currentView = "food-item";
 
   document.getElementById("modeButton").style.display = "block";
 
@@ -293,14 +304,14 @@ function renderFoodInstanceDetail() {
             ? `<button onclick="showStorageLocation('${item.StorageLocationID}')">
                 ${storageText}
               </button>`
-            : `<select id="fld-storageLocation">
+            : `<select id="fld-storageLocation"
+                ${itemMode === "edit" ? 'oninput="markDirty()"' : ''}>
                 ${(window._storageLocationCache || []).map(s => `
                   <option value="${s.StorageLocationID}"
                     ${s.StorageLocationID === item.StorageLocationID ? "selected" : ""}>
                     ${s.Label} (${s.PhysicalLocation})
                   </option>
                 `).join('')}
-                ${itemMode === "edit" ? 'oninput="markDirty()"' : ''}
               </select>`
         }
       </div>
@@ -337,7 +348,7 @@ function renderFoodInstanceDetail() {
         />
       </div>
 
-      !-- Date -->
+      <!-- Date -->
       <div class="field-row">
         <label>Date</label>
         <input id="fld-date" 
@@ -354,14 +365,14 @@ function renderFoodInstanceDetail() {
         ${
           itemMode === "view"
             ? `<div>${item.StorageType || ''}</div>`
-            : `<select id="fld-storageType">
+            : `<select id="fld-storageType"
+                ${itemMode === "edit" ? 'oninput="markDirty()"' : ''}>
                 ${["Freeze-Dried","Frozen","Bottled","Canned","Boxed","Other"]
                   .map(opt => `
                     <option ${item.StorageType === opt ? "selected" : ""}>
                       ${opt}
                     </option>
                   `).join('')}
-                ${itemMode === "edit" ? 'oninput="markDirty()"' : ''}
               </select>`
         }
       </div>
@@ -371,10 +382,10 @@ function renderFoodInstanceDetail() {
           itemMode === "view"
             ? `
               <button onclick="enterEditMode()">Edit</button>
-              <button onclick="showInventory()">Back</button>
+              <button onclick="showInventory()">Close</button>
             `
             : `
-              <button onclick="saveItem()">Save</button>
+              <button onclick="saveFoodInstance()">Save</button>
               <button onclick="cancelEdit()">Cancel</button>
             `
         }
@@ -386,48 +397,7 @@ function renderFoodInstanceDetail() {
   document.getElementById("content").innerHTML = html;
 }
 
-function getChangedFields(original, updated) {
-  const changes = {};
-
-  Object.keys(updated).forEach(key => {
-    if (updated[key] !== original[key]) {
-      changes[key] = updated[key];
-    }
-  });
-
-  return changes;
-}
-
-function markDirty() {
-  isDirty = true;
-  document.getElementById("modeButton")?.classList.add("dirty");
-}
-
-function clearDirty() {
-  isDirty = false;
-  document.getElementById("modeButton")?.classList.remove("dirty");
-}
-
-function enterEditMode() {
-  itemMode = "edit";
-  clearDirty();
-  updateModeButton();
-  renderFoodInstanceDetail();
-}
-
-function cancelEdit() {
-  itemMode = "view";
-  clearDirty(); 
-
-  // ✅ reload original
-  const original = window._foodInstanceCache.find(i => i.InstanceID === currentItem.InstanceID);
-  currentItem = { ...original };
-
-  updateModeButton();
-  renderFoodInstanceDetail();
-}
-
-async function saveItem(addAnother = false) {
+async function saveFoodInstance(addAnother = false) {
 
   currentItem.Label = document.getElementById("fld-label").value;
   currentItem.Keywords = document.getElementById("fld-keywords").value;
@@ -468,104 +438,205 @@ async function saveItem(addAnother = false) {
   }
 }
 
-function showSavePreview(data) {
-  const div = document.createElement("div");
-
-  div.style.position = "fixed";
-  div.style.top = "20px";
-  div.style.left = "50%";
-  div.style.transform = "translateX(-50%)";
-  div.style.background = "white";
-  div.style.border = "1px solid #ccc";
-  div.style.padding = "10px";
-  div.style.zIndex = "2000";
-
-  div.innerHTML = `
-    <strong>Would save:</strong><br/>
-    <pre>${JSON.stringify(data, null, 2)}</pre>
-    <button onclick="this.parentElement.remove()">Close</button>
-  `;
-
-  document.body.appendChild(div);
-}
-
 /* ---------- STORAGE ---------- */
 
 function renderStorageList() {
-  const storage = window._storageLocationCache;
+  let working = window._storageLocationCache || [];
 
-  let html = '<div class="card"><table class="inventory-table"><tbody>';
+  if (storageFilter.text) {
+    const terms = storageFilter.text.split(/\s+/);
 
-  storage.forEach(s => {
+    working = working.filter(s => {
+      const haystack = [
+        s.Label,
+        s.Notes,
+        s.PhysicalLocation
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+
+      return terms.every(t => haystack.includes(t));
+    });
+  }
+
+  let html = `<div class="card"><div class="table-wrapper"><table class="inventory-table">`;
+
+  html += `
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Label</th>
+        <th>Location</th>
+      </tr>
+    </thead><tbody>
+  `;
+
+  working.forEach(s => {
     html += `
-      <tr onclick="showStorageLocation('${s.StorageLocationID}')">
+      <tr
+        id="row-${s.StorageLocationID}"
+        data-id="${s.StorageLocationID}"
+        class="${selectedItems.has(s.StorageLocationID) ? 'selected-row' : ''}"
+        onmousedown="handleRowMouseDown(event, this)"
+        onmouseover="handleRowMouseOver(event, this)"
+        onclick="handleRowClick('${s.StorageLocationID}')"
+      >
         <td>${s.StorageLocationID}</td>
         <td>${s.Label}</td>
         <td>${s.PhysicalLocation}</td>
-      </tr>`;
+      </tr>
+    `;
   });
 
-  html += '</tbody></table></div>';
-  document.getElementById('content').innerHTML = html;
+  html += `</tbody></table></div></div>`;
+
+  document.getElementById("content").innerHTML = html;
 }
+
 
 function showStorageLocation(id) {
-  document.getElementById('status-message').innerHTML =
-    '<div><em>Loading location…</em></div>';
+  currentView = "storage-item";
 
-  const location = window._storageMap[id];
+  const item = window._storageMap[id];
+  if (!item) return;
 
-  if (!location) {
-    showError({ message: "Location not found" });
-    return;
-  }
+  currentItem = { ...item };
+  originalItem = item;
 
-  // ✅ Build related food instances from cache
-  const foodInstances = window._foodInstanceCache.filter(
-    f => f.StorageLocationID === id
-  );
+  itemMode = "view";
 
-  // ✅ Render using same structure as API
-  renderStorageLocation({
-    storageLocation: location,
-    foodInstances: foodInstances
-  });
-
-  document.getElementById('status-message').innerHTML = '';
+  updateModeButton();
+  renderStorageDetail();
 }
 
-function renderStorageLocation(data) {
-  const s = data.storageLocation;
+function renderStorageDetail() {
+  const item = currentItem;
+  const readOnly = itemMode === "view" ? "readonly" : "";
 
-  let html = `<div class="card">
-    <h2>${s?.Label}</h2>
-  `;
+  document.getElementById("cameraButton").disabled = (itemMode === "edit");
 
-  html += `
-    <div class="card">
-      <button id="qr-btn-${s.StorageLocationID}"
-              onclick="toggleQRCode('storageLocation','${s.StorageLocationID}')">
-        Show QR Code
-      </button>
-      <div id="qr-code-${s.StorageLocationID}" style="margin-top:10px;"></div>
+  let html = `
+    <div class="card ${itemMode === "edit" ? "edit-mode" : "view-mode"}">
+
+      <h2>${item.StorageLocationID}</h2>
+
+      <div class="field-row">
+        <label>Label</label>
+        <input id="fld-label" value="${item.Label || ''}" ${readOnly}
+          ${itemMode === "edit" ? 'oninput="markDirty()"' : ''} />
+      </div>
+
+      <div class="field-row">
+        <label>Notes</label>
+        <input id="fld-notes" value="${item.Notes || ''}" ${readOnly}
+          ${itemMode === "edit" ? 'oninput="markDirty()"' : ''} />
+      </div>
+
+      <div class="field-row">
+        <label>Physical Location</label>
+        <input id="fld-physical" value="${item.PhysicalLocation || ''}" ${readOnly}
+          ${itemMode === "edit" ? 'oninput="markDirty()"' : ''} />
+      </div>
+
+      <div style="margin-top: 1rem;">
+        ${
+          itemMode === "view"
+            ? `
+              <button onclick="enterEditMode()">Edit</button>
+              <button onclick="showStorage()">Close</button>
+            `
+            : `
+              <button onclick="saveStorage()">Save</button>
+              <button onclick="cancelEdit()">Cancel</button>
+            `
+        }
+      </div>
+
     </div>
   `;
 
-  html += `
-    <button onclick="enterAssignmentMode('${s.StorageLocationID}')">
-      Start Assigning Here
-    </button>
-  `;
+  document.getElementById("content").innerHTML = html;
+}
 
-  html += `<div class="card">`;
+async function saveStorage() {
+  currentItem.Label = document.getElementById("fld-label").value;
+  currentItem.Notes = document.getElementById("fld-notes").value;
+  currentItem.PhysicalLocation = document.getElementById("fld-physical").value;
 
-  data.foodInstances.forEach(f => {
-    html += `<div>${f.InstanceID} - ${f.Label}</div>`;
+  const changes = getChangedFields(originalItem, currentItem);
+
+  if (!Object.keys(changes).length) {
+    alert("No changes");
+    return;
+  }
+
+  await updateStorageLocation(currentItem.StorageLocationID, changes);
+
+  Object.assign(originalItem, currentItem);
+
+  isDirty = false;
+  itemMode = "view";
+
+  renderStorageDetail();
+}
+
+/* ------- EDITING ITEMS ------------ */
+
+function getChangedFields(original, updated) {
+  const changes = {};
+
+  Object.keys(updated).forEach(key => {
+    if (updated[key] !== original[key]) {
+      changes[key] = updated[key];
+    }
   });
 
-  html += `</div></div>`;
+  return changes;
+}
 
-  document.getElementById('content').innerHTML = html;
+function markDirty() {
+  isDirty = true;
+  document.getElementById("modeButton")?.classList.add("dirty");
+}
+
+function clearDirty() {
+  isDirty = false;
+  document.getElementById("modeButton")?.classList.remove("dirty");
+}
+
+function enterEditMode() {
+  itemMode = "edit";
+  clearDirty();
+  updateModeButton();
+  switch (currentView) {
+    case "food-item":
+      renderFoodInstanceDetail();
+      break;
+    case "storage-item":
+      renderStorageDetail();
+      break;
+  }
+  
+}
+
+function cancelEdit() {
+  itemMode = "view";
+  clearDirty(); 
+  updateModeButton();
+  
+  // reload original
+  switch (currentView) {
+    case "food-item":
+      const original = window._foodInstanceCache.find(i => i.InstanceID === currentItem.InstanceID);
+      currentItem = { ...original };
+      renderFoodInstanceDetail();
+      break;
+    case "storage-item":
+      const original = window._storageLocationCache.find(i => i.StorageLocationID === currentItem.StorageLocationID);
+      currentItem = { ...original };
+      renderStorageDetail();
+  } 
 }
 
 
@@ -630,7 +701,7 @@ function handleQRCode(text) {
 
     // ✅ FOOD INSTANCE
     if (id.startsWith("FI")) {
-      showFoodInstance(id);
+      handleFoodScan(id);
       return;
     }
 
@@ -642,10 +713,32 @@ function handleQRCode(text) {
   }
 }
 
+async function handleFoodScan(foodID) {
+  if (currentView === "storage-item") {
+    if (itemMode !== "view") return;
+
+    const confirmed = confirm("Assign item to this location?");
+    if (!confirmed) return;
+
+    const food = window._foodInstanceCache.find(f => f.InstanceID === foodID);
+
+    const updated = {
+      ...food,
+      StorageLocationID: currentItem.StorageLocationID
+    };
+
+    const changes = getChangedFields(food, updated);
+
+    await updateFoodInstance(foodID, changes);
+
+    alert("Item assigned to Storage Location");
+  }
+}
+
 async function handleStorageScan(storageID) {
 
   /* --- When in FoodInstance view --- */
-  if (currentView === "item") {
+  if (currentView === "food-item") {
     const currentID = currentItem.StorageLocationID;
     if (currentID === storageID) return;
 
@@ -829,14 +922,14 @@ function toggleSort() {
 function toggleMode() {
 
   // Inventory behavior
-  if (currentView === "inventory") {
+  if (currentView === "food-list" || currentView === "storage-list") {
     interactionMode = interactionMode === "browse" ? "select" : "browse";
     document.body.classList.toggle("select-mode", interactionMode === "select");
     updateModeButton();
   }
 
   // Item behavior
-  if (currentView === "item") {
+  if (currentView === "food-item" || currentView === "storage-item") {
     if (itemMode === "edit" && isDirty) {
 
       const confirmed = confirm(
@@ -853,7 +946,14 @@ function toggleMode() {
 
     itemMode = itemMode === "view" ? "edit" : "view";
 
-    renderFoodInstanceDetail();  // re-render fields
+    switch (currentView) {
+      case "food-item":
+        renderFoodInstanceDetail();  // re-render fields
+        break;
+      case "storage-item":
+        renderStorageDetail();  // re-render fields
+        break;
+    }
     updateModeButton();
   }
 }
@@ -862,7 +962,11 @@ function toggleMode() {
 
 function handleRowClick(event, id) {
   if (interactionMode === "browse") {
-    showFoodInstance(id);
+    if (currentView === "food-list") {
+      showFoodInstance(id);
+    } else if (currentView === "storage-list") {
+      showStorageLocation(id);
+    }
     return;
   }
   // In select mode, selection is controlled in other ways.  
@@ -1005,6 +1109,11 @@ function toggleRowSelection(event, id) {
   updateSelectionUI();
 }
 
+function clearSelection() {
+  selectedItems.clear();
+  updateSelectionUI();
+}
+
 function updateSelectionUI() {
   const countEl = document.getElementById('selectionCount');
   if (countEl) {
@@ -1015,11 +1124,11 @@ function updateSelectionUI() {
 function updateModeButton() {
   const btn = document.getElementById("modeButton");
 
-  if (currentView === "inventory") {
+  if (currentView === "food-list" || currentView === "storage-list") {
     btn.textContent = interactionMode === "select" ? "✅" : "🔍";
   }
 
-  if (currentView === "item") {
+  if (currentView === "food-item" || currentView === "storage-item") {
     btn.textContent = itemMode === "edit" ? "✏️" : "👁️";
   }
 }
