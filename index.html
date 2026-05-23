@@ -525,123 +525,6 @@ function showFoodInstance(id) {
   renderFoodInstanceDetail();
 }
 
-function renderFoodInstanceDetail() {
-  updateFilterVisibility();
-  const item = currentItem;
-  const storage = window._storageMap[item.StorageLocationID];
-
-  const readOnly = itemMode === "view" ? "readonly" : "";
-
-  const storageText = storage
-    ? `${storage.Label} (${storage.PhysicalLocation})`
-    : "Unassigned";
-
-  let html = `
-    <div class="card ${itemMode === "edit" ? "edit-mode" : "view-mode"}">
-
-      <h2>${item.InstanceID}</h2>
-
-      <!-- Storage Location -->
-      <div class="field-row">
-        <label>Storage Location</label>
-        ${
-          itemMode === "view"
-            ? `<button onclick="showStorageLocation('${item.StorageLocationID}')">
-                ${storageText}
-              </button>`
-            : `<select id="fld-storageLocation"
-                ${itemMode === "edit" ? 'oninput="markDirty()"' : ''}>
-                ${(window._storageLocationCache || []).map(s => `
-                  <option value="${s.StorageLocationID}"
-                    ${s.StorageLocationID === item.StorageLocationID ? "selected" : ""}>
-                    ${s.Label} (${s.PhysicalLocation})
-                  </option>
-                `).join('')}
-              </select>`
-        }
-      </div>
-
-      <!-- Label -->
-      <div class="field-row">
-        <label>Label</label>
-        <input id="fld-label" value="${item.Label || ''}" ${readOnly} 
-          ${itemMode === "edit" ? 'oninput="markDirty()"' : ''}
-        />
-      </div>
-
-      <!-- Keywords -->
-      <div class="field-row">
-        <label>Keywords</label>
-        <input id="fld-keywords" value="${item.Keywords || ''}" ${readOnly} 
-          ${itemMode === "edit" ? 'oninput="markDirty()"' : ''}
-        />
-      </div>
-
-      <!-- Notes -->
-      <div class="field-row">
-        <label>Notes</label>
-        <input id="fld-notes" value="${item.Notes || ''}" ${readOnly} 
-          ${itemMode === "edit" ? 'oninput="markDirty()"' : ''}
-        />
-      </div>
-
-      <!-- Size -->
-      <div class="field-row">
-        <label>Size</label>
-        <input id="fld-size" value="${item.Size || ''}" ${readOnly} 
-          ${itemMode === "edit" ? 'oninput="markDirty()"' : ''}
-        />
-      </div>
-
-      <!-- Date -->
-      <div class="field-row">
-        <label>Date</label>
-        <input id="fld-date" 
-          placeholder="MM/DD/YYYY or MM/YYYY"
-          value="${item.Date || ''}"
-          ${readOnly}  
-          ${itemMode === "edit" ? 'oninput="markDirty()"' : ''}
-        />
-      </div>
-
-      <!-- Storage Type -->
-      <div class="field-row">
-        <label>Storage Type</label>
-        ${
-          itemMode === "view"
-            ? `<div>${item.StorageType || ''}</div>`
-            : `<select id="fld-storageType"
-                ${itemMode === "edit" ? 'oninput="markDirty()"' : ''}>
-                ${["Freeze-Dried","Frozen","Bottled","Canned","Boxed","Other"]
-                  .map(opt => `
-                    <option ${item.StorageType === opt ? "selected" : ""}>
-                      ${opt}
-                    </option>
-                  `).join('')}
-              </select>`
-        }
-      </div>
-
-      <div style="margin-top: 1rem;">
-        ${
-          itemMode === "view"
-            ? `
-              <button onclick="enterEditMode()">Edit</button>
-              <button onclick="goBack()">Close</button>
-            `
-            : `
-              <button onclick="saveFoodInstance()">Save</button>
-              <button onclick="cancelEdit()">Cancel</button>
-            `
-        }
-      </div>
-
-    </div>
-  `;
-
-  document.getElementById("content").innerHTML = html;
-}
-
 async function saveFoodInstance(addAnother = false) {
 
   currentItem.Label = document.getElementById("fld-label").value;
@@ -666,7 +549,7 @@ async function saveFoodInstance(addAnother = false) {
   try {
     await updateFoodInstance(currentItem.InstanceID, changes);
 
-    // ✅ update local cache to reflect changes
+    // update local cache to reflect changes
     const idx = window._foodInstanceCache.findIndex(
       i => i.InstanceID === currentItem.InstanceID
     );
@@ -843,6 +726,211 @@ async function saveStorage() {
   renderStorageDetail();
 }
 
+/* -------- VIEW/EDIT ITEM ----------- */
+
+const ENTITY_FIELDS = {
+  "food-item": [
+    { key: "StorageLocationID", label: "Storage Location", type: "storage-select" },
+    { key: "Label", label: "Label", type: "text" },
+    { key: "Keywords", label: "Keywords", type: "text" },
+    { key: "Notes", label: "Notes", type: "text" },
+    { key: "Size", label: "Size", type: "text" },
+    { key: "Date", label: "Date", type: "text" },
+    {
+      key: "StorageType",
+      label: "Storage Type",
+      type: "select",
+      options: ["Freeze-Dried","Frozen","Bottled","Canned","Boxed","Other"]
+    }
+  ],
+
+  "storage-item": [
+    { key: "Label", label: "Label", type: "text" },
+    { key: "Notes", label: "Notes", type: "text" },
+    { key: "PhysicalLocation", label: "Physical Location", type: "text" }
+  ]
+};
+
+const DETAIL_ACTIONS = {
+  view: [
+    { action: "edit", label: "Edit" },
+    { action: "close", label: "Close" }
+  ],
+  edit: [
+    { action: "save", label: "Save" },
+    { action: "cancel", label: "Cancel" }
+  ]
+};
+
+
+
+function renderField(field, item, readOnly) {
+  const value = item[field.key] || '';
+
+  // Storage special case
+  if (field.type === "storage-select") {
+    const storage = window._storageMap?.[value];
+    const storageText = storage
+      ? `${storage.Label} (${storage.PhysicalLocation})`
+      : "Unassigned";
+
+    if (readOnly) {
+      return `<button data-storage-link="${value}">
+        ${storageText}
+      </button>`;
+    }
+
+    return `
+      <select data-field="${field.key}">
+        ${(window._storageLocationCache || []).map(s => `
+          <option value="${s.StorageLocationID}"
+            ${s.StorageLocationID === value ? "selected" : ""}>
+            ${s.Label} (${s.PhysicalLocation})
+          </option>
+        `).join('')}
+      </select>
+    `;
+  }
+
+  // Select (dropdown list)
+  if (field.type === "select") {
+    if (readOnly) {
+      return `<div>${value}</div>`;
+    }
+
+    return `
+      <select data-field="${field.key}">
+        ${field.options.map(opt => `
+          <option ${opt === value ? "selected" : ""}>${opt}</option>
+        `).join('')}
+      </select>
+    `;
+  }
+
+  // Default text
+  return `
+    <input
+      data-field="${field.key}"
+      value="${value}"
+      ${readOnly ? "readonly" : ""}
+    />
+  `;
+}
+
+function renderDetailForm(entityType, item) {
+  const fields = ENTITY_FIELDS[entityType];
+
+  return fields.map(f => `
+    <div class="field-row">
+      <label>${f.label}</label>
+      ${renderField(f, item, itemMode === "view")}
+    </div>
+  `).join('');
+}
+
+function renderDetailActions() {
+  const actions = DETAIL_ACTIONS[itemMode];
+
+  return `
+    <div class="detail-actions">
+      ${actions.map(a => `
+        <button data-action="${autton>
+      `).join('')}
+    </div>
+  `;
+}
+
+function bindDetailEvents() {
+  const container = document.getElementById("content");
+
+  // input / select changes
+  container.querySelectorAll("[data-field]").forEach(el => {
+    el.addEventListener("input", () => {
+      const key = el.dataset.field;
+      currentItem[key] = el.value;
+      markDirty();
+    });
+
+    el.addEventListener("change", () => {
+      const key = el.dataset.field;
+      currentItem[key] = el.value;
+      markDirty();
+    });
+  });
+
+  // storage link (view mode)
+  container.querySelectorAll("[data-storage-link]").forEach(el => {
+    el.addEventListener("click", () => {
+      showStorageLocation(el.dataset.storageLink);
+    });
+  });
+}
+
+function renderFoodInstanceDetail() {
+  updateFilterVisibility();
+
+  const item = currentItem;
+
+  let html = `
+    <div class="card ${itemMode === "edit" ? "edit-mode" : "view-mode"}">
+      <h2>${item.InstanceID}</h2>
+
+      ${renderDetailForm("food-item", item)}
+
+      <div style="margin-top: 1rem;">
+        ${renderDetailActions()}
+      </div>
+    </div>
+  `;
+
+  document.getElementById("content").innerHTML = html;
+
+  bindDetailEvents();
+}
+
+function renderStorageDetail() {
+  updateFilterVisibility();
+
+  const item = currentItem;
+
+  let html = `
+    <div class="card ${itemMode === "edit" ? "edit-mode" : "view-mode"}">
+      <h2>${item.StorageLocationID}</h2>
+
+      ${renderDetailForm("storage-item", item)}
+
+      <div id="related-food"></div>
+
+      <div style="margin-top: 1rem;">
+        ${renderDetailActions()}
+      </div>
+    </div>
+  `;
+
+  document.getElementById("content").innerHTML = html;
+
+  bindDetailEvents();
+
+  // existing related-table render stays as-is
+  const related = (window._foodInstanceCache || [])
+    .filter(i => i.StorageLocationID === item.StorageLocationID);
+
+  renderTable({
+    container: document.getElementById("related-food"),
+    rows: related,
+    getRowId: r => r.InstanceID,
+    enableSelection: false,
+    onRowClick: (e, id) => showFoodInstance(id),
+    columns: [
+      { label: "Date", render: r => r.Date || '' },
+      { label: "ID", render: r => r.InstanceID },
+      { label: "Description", render: r => r.Label || '' },
+      { label: "Status", render: r => r.Status || '' }
+    ]
+  });
+}
+
+
 /* ------- EDITING ITEMS ------------ */
 
 function getChangedFields(original, updated) {
@@ -957,19 +1045,19 @@ function handleQRCode(text) {
 
     const id = obj.id;
 
-    // ✅ STORAGE LOCATION
+    // STORAGE LOCATION
     if (id.startsWith("SL")) {
       handleStorageScan(id);
       return;
     }
 
-    // ✅ FOOD INSTANCE
+    // FOOD INSTANCE
     if (id.startsWith("FI")) {
       handleFoodScan(id);
       return;
     }
 
-    // ✅ Unknown type
+    // Unknown type
     alert("Unrecognized QR code");
 
   } catch {
@@ -1183,7 +1271,7 @@ function renderFilterChips() {
   const container = document.getElementById('status-controls-chips');
   container.innerHTML = chips;
 
-  // ✅ attach clear handlers (no inline onclick needed)
+  // attach clear handlers (no inline onclick needed)
   container.querySelectorAll('button').forEach(btn => {
     btn.addEventListener('click', (e) => {
       const idx = e.currentTarget.dataset.chipIndex;
@@ -1417,7 +1505,7 @@ function handleRowMouseDown(event, rowEl) {
 
   const id = rowEl.dataset.id;
 
-  // ✅ Determine drag intent ONCE
+  // Determine drag intent ONCE
   if (selectedItems.has(id)) {
     dragAction = "remove";
     selectedItems.delete(id);
@@ -1492,7 +1580,7 @@ function handleTouchStart(event) {
 function handleTouchMove(event) {
   if (interactionMode !== "select" || !isDragging || !dragAction) return;
 
-  // ✅ find element under finger
+  // find element under finger
   const touch = event.touches[0];
   const el = document.elementFromPoint(touch.clientX, touch.clientY);
 
@@ -1519,7 +1607,7 @@ function handleTouchMove(event) {
     }
   }
 
-  // ✅ prevents scrolling while dragging
+  // prevents scrolling while dragging
   event.preventDefault();
 }
 
@@ -1692,7 +1780,7 @@ async function drawLabel(doc, item, x, y) {
 
   const img = qrTemp.querySelector("canvas").toDataURL("image/png");
 
-  // ✅ QR LEFT SIDE
+  // QR LEFT SIDE
   doc.addImage(img,
     "PNG",
     x + padding,
