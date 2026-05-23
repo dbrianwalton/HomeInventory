@@ -866,6 +866,35 @@ function bindDetailEvents() {
       showStorageLocation(el.dataset.storageLink);
     });
   });
+
+  // action buttons
+  container.querySelectorAll("[data-action]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const action = btn.dataset.action;
+
+      switch (action) {
+        case "edit":
+          enterEditMode();
+          break;
+
+        case "close":
+          goBack();
+          break;
+
+        case "save":
+          if (currentView === "food-item") {
+            saveFoodInstance();
+          } else if (currentView === "storage-item") {
+            saveStorage();
+          }
+          break;
+
+        case "cancel":
+          cancelEdit();
+          break;
+      }
+    });
+  });
 }
 
 function renderFoodInstanceDetail() {
