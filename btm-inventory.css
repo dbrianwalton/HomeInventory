@@ -34,6 +34,87 @@ h1 {
   margin-bottom: 1rem;
 }
 
+.card.edit-mode {
+  border-left: 4px solid #2563eb;
+}
+
+.card.view-mode {
+  border-left: 4px solid transparent;
+}
+
+.card input,
+.card textarea,
+.card select {
+  width: 100%;
+  margin-bottom: 0.5rem;
+  padding: 0.4rem;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  font-family: inherit;
+}
+
+.card.view-mode input,
+.card.view-mode textarea {
+  border: none;
+  background: transparent;
+  font-weight: normal;
+  color: #333;
+}
+
+.card.view-mode input[readonly],
+.card.view-mode textarea[readonly] {
+  color: #555;
+}
+
+.card.edit-mode input,
+.card.edit-mode textarea,
+.card.edit-mode select {
+  font-size: 1.15em;   /* ✅ larger text */
+  font-weight: 600;    /* ✅ slightly bold */
+  border: 1px solid #2563eb;
+  background: #f9fbff;
+}
+
+.card.edit-mode input:focus,
+.card.edit-mode textarea:focus,
+.card.edit-mode select:focus {
+  outline: none;
+  border-color: #1d4ed8;
+  box-shadow: 0 0 0 2px #2563eb33;
+}
+
+.field-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  max-width: 550px;
+}
+
+
+.field-row label {
+  flex: 0 0 auto;   /* ✅ only as wide as text */
+  font-weight: 600;
+}
+
+.field-row input {
+  flex: 1;             /* ✅ fills remaining space */
+  max-width: 400px;    /* ✅ limit width */
+
+  padding: 0.3rem;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+
+  font-family: inherit;
+}
+
+.field-row button {
+  flex: 1;
+  max-width: 400px;
+  text-align: left;
+}
+
+
 button {
   font-size: 1rem;
   padding: 0.6rem 0.9rem;

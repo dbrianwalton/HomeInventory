@@ -273,24 +273,37 @@ function renderFoodInstanceDetail() {
   const readOnly = itemMode === "view" ? "readonly" : "";
 
   let html = `
-    <div class="card">
-
+    <div class="card ${itemMode === "edit" ? "edit-mode" : "view-mode"}">
+  `;
+  html += `
       <h2>${item.InstanceID}</h2>
 
-      <label>ID</label>
-      <input value="${item.InstanceID}" readonly />
+      <div class="field-row">
+        <label>Storage Location</label>
+        <button onclick="showStorageLocation('${item.StorageLocationID}')">
+          ${storageText}
+        </button>
+      </div>
 
-      <label>Label</label>
-      <input id="fld-label" value="${item.Label || ''}" ${readOnly} />
+      <div class="field-row">
+        <label>Label</label>
+        <input id="fld-label" value="${item.Label || ''}" ${readOnly} />
+      </div>
 
-      <label>Keywords</label>
-      <input id="fld-keywords" value="${item.Keywords || ''}" ${readOnly} />
+      <div class="field-row">
+        <label>Keywords</label>
+        <input id="fld-keywords" value="${item.Keywords || ''}" ${readOnly} />
+      </div>
 
-      <label>Notes</label>
-      <textarea id="fld-notes" ${readOnly}>${item.Notes || ''}</textarea>
+      <div class="field-row">
+        <label>Notes</label>
+        <input id="fld-notes" ${readOnly}>${item.Notes || ''}</textarea>
+      </div>
 
-      <label>Size</label>
-      <input id="fld-size" value="${item.Size || ''}" ${readOnly} />
+      <div class="field-row">
+        <label>Size</label>
+        <input id="fld-size" value="${item.Size || ''}" ${readOnly} />
+      </div>
   `;
   html += `<label>Storage Type</label>`;
 
