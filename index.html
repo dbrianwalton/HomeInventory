@@ -1652,7 +1652,8 @@ async function generateLabelsPDF(skip=3) {
     index++;
   }
 
-  doc.save("labels.pdf");
+  window.open(doc.output("bloburl"));
+  // doc.save("labels.pdf");
 }
 
 async function drawLabel(doc, item, x, y) {
