@@ -448,11 +448,7 @@ async function saveItem() {
     }
 
     isDirty = false;
-
-    alert("Saved!");
-
-    itemMode = "view";
-    renderFoodInstanceDetail();
+    showInventory();
 
   } catch (err) {
     console.error(err);
