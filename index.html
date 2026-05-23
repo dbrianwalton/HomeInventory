@@ -495,7 +495,8 @@ function renderFoodInstanceList() {
       },
       {
         label: "Storage",
-        render: r => window._storageMap?.[r.StorageLocationID]?.Label || ''
+        render: r => window._storageMap?.[r.StorageLocationID]?.Label || '',
+        field: "StorageLocationID"
       },
       {
         label: "Status",
