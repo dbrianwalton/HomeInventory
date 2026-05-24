@@ -1207,6 +1207,7 @@ const FILTER_CONFIG = {
         label: (v) => v,
         onClear: () => {
           inventoryFilter.text = '';
+          renderFilterUI();
           renderFoodInstanceList();
         }
       },
@@ -1237,6 +1238,7 @@ const FILTER_CONFIG = {
         label: (v) => v,
         onClear: () => {
           storageFilter.text = '';
+          renderFilterUI();
           renderStorageList();
         }
       }
@@ -1481,6 +1483,7 @@ function toggleMode() {
   if (currentView === "food-list" || currentView === "storage-list") {
     interactionMode = interactionMode === "browse" ? "select" : "browse";
     document.body.classList.toggle("select-mode", interactionMode === "select");
+    clearSelection();
     updateModeButton();
   }
 
