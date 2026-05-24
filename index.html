@@ -1354,8 +1354,7 @@ function applyCurrentFilter() {
   const text = input ? input.value.trim().toLowerCase() : '';
 
   config.setValue(text);
-  config.onApply();
-  renderFilterChips();
+  applyFiltersAndRefresh();
 }
 
 function clearCurrentFilter() {
@@ -1367,8 +1366,7 @@ function clearCurrentFilter() {
   const input = document.getElementById('filterInput');
   if (input) input.value = '';
 
-  config.onApply();
-  renderFilterChips();
+  applyFiltersAndRefresh();
 }
 
 
@@ -1435,8 +1433,7 @@ function applyDateFilter() {
     ? new Date(to.value + 'T23:59:59').getTime()
     : null;
 
-  config.onApply();
-  renderFilterChips();
+  applyFiltersAndRefresh();
 }
 
 function clearDateFilter() {
@@ -1449,6 +1446,14 @@ function clearDateFilter() {
   renderFoodInstanceList();
   updateFilterVisibility();
   renderFilterChips();
+}
+
+function applyFiltersAndRefresh() {
+  const config = FILTER_CONFIG[currentView];
+  if (!config) return;
+
+  config.onApply();       // update list
+  renderFilterChips();    // update chips
 }
 
 
