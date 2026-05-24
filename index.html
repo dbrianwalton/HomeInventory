@@ -1542,12 +1542,10 @@ function handleRowMouseDown(event, rowEl) {
   // Determine drag intent ONCE
   if (selectedItems.has(id)) {
     dragAction = "remove";
-    selectedItems.delete(id);
-    rowEl.classList.remove("selected-row");
+    removeItemFromSelection(id, rowEl);
   } else {
     dragAction = "add";
-    selectedItems.add(id);
-    rowEl.classList.add("selected-row");
+    addItemToSelection(id, rowEl);
   }
 
   updateSelectionUI();
@@ -1563,19 +1561,16 @@ function handleRowMouseOver(event, rowEl) {
 
   if (dragAction === "add") {
     if (!selectedItems.has(id)) {
-      selectedItems.add(id);
-      rowEl.classList.add("selected-row");
-      updateSelectionUI();
+      addItemToSelection(id, rowEl);
     }
   }
 
   if (dragAction === "remove") {
     if (selectedItems.has(id)) {
-      selectedItems.delete(id);
-      rowEl.classList.remove("selected-row");
-      updateSelectionUI();
+      removeItemFromSelection(id, rowEl);
     }
   }
+  updateSelectionUI();
 }
 
 document.addEventListener("mouseup", () => {
@@ -1600,12 +1595,10 @@ function handleTouchStart(event) {
   // same as mousedown logic
   if (selectedItems.has(id)) {
     dragAction = "remove";
-    selectedItems.delete(id);
-    rowEl.classList.remove("selected-row");
+    removeItemFromSelection(id, rowEl);
   } else {
     dragAction = "add";
-    selectedItems.add(id);
-    rowEl.classList.add("selected-row");
+    addItemToSelection(id, rowEl);
   }
 
   updateSelectionUI();
@@ -1627,19 +1620,16 @@ function handleTouchMove(event) {
 
   if (dragAction === "add") {
     if (!selectedItems.has(id)) {
-      selectedItems.add(id);
-      rowEl.classList.add("selected-row");
-      updateSelectionUI();
+      addItemToSelection(id, rowEl);
     }
   }
 
   if (dragAction === "remove") {
     if (selectedItems.has(id)) {
-      selectedItems.delete(id);
-      rowEl.classList.remove("selected-row");
-      updateSelectionUI();
+      removeItemFromSelection(id, rowEl);
     }
   }
+  updateSelectionUI();
 
   // prevents scrolling while dragging
   event.preventDefault();
@@ -1652,22 +1642,49 @@ function handleTouchEnd() {
 }
 
 function toggleRowSelection(event, id) {
-  const row = document.getElementById(`row-${id}`);
-
   if (selectedItems.has(id)) {
-    selectedItems.delete(id);
-    row.classList.remove("selected-row");
+    removeItemFromSelection(id);
   } else {
-    selectedItems.add(id);
-    row.classList.add("selected-row");
+    addItemToSelection(id);
   }
 
   updateSelectionUI();
 }
 
+function addItemToSelection(id, row) {
+  row = row || document.getElementById(`row-${id}`);
+  selectedItems.add(id);
+  row.classList.add("selected-row");
+}
+
+function removeItemFromSelection(id, row) {
+  row = row || document.getElementById(`row-${id}`);
+  selectedItems.delette(id);
+  row.classList.remove("selected-row");
+}
+
 function clearSelection() {
   selectedItems.clear();
+
+  refreshSelectionUI();
   updateSelectionUI();
+}
+
+
+function refreshSelectionUI() {
+  document.querySelectorAll('tr[data-id]').forEach(row => {
+    const id = row.dataset.id;
+    const isSelected = selectedItems.has(id);
+
+    row.classList.toggle('selected-row', isSelected);
+  });
+}
+
+function updateRowSelectionUI(id, isSelected) {
+  const row = document.getElementById(`row-${id}`);
+  if (!row) return;
+
+  row.classList.toggle('selected-row', isSelected);
 }
 
 function updateSelectionUI() {
