@@ -1659,7 +1659,7 @@ function addItemToSelection(id, row) {
 
 function removeItemFromSelection(id, row) {
   row = row || document.getElementById(`row-${id}`);
-  selectedItems.delette(id);
+  selectedItems.delete(id);
   row.classList.remove("selected-row");
 }
 
