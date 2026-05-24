@@ -1653,12 +1653,16 @@ function toggleRowSelection(event, id) {
 
 function addItemToSelection(id, row) {
   row = row || document.getElementById(`row-${id}`);
+  if (!row) return;
+
   selectedItems.add(id);
   row.classList.add("selected-row");
 }
 
 function removeItemFromSelection(id, row) {
   row = row || document.getElementById(`row-${id}`);
+  if (!row) return;
+
   selectedItems.delete(id);
   row.classList.remove("selected-row");
 }
@@ -1678,13 +1682,6 @@ function refreshSelectionUI() {
 
     row.classList.toggle('selected-row', isSelected);
   });
-}
-
-function updateRowSelectionUI(id, isSelected) {
-  const row = document.getElementById(`row-${id}`);
-  if (!row) return;
-
-  row.classList.toggle('selected-row', isSelected);
 }
 
 function updateSelectionUI() {
