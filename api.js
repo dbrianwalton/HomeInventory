@@ -1,4 +1,5 @@
 /* ---------- CONFIG ---------- */
+const appID = "BTM-Inventory";
 
 const CLIENT_ID = "364484300168-cjutfpntqunv3sv7ailg2nv51v8581kj.apps.googleusercontent.com";
 const SCOPES = "https://www.googleapis.com/auth/spreadsheets";
@@ -9,7 +10,7 @@ let accessToken = null;
 
 window._foodInstanceCache = null;
 window._storageLocationCache = null;
-window._eventCache = null;
+window._foodInstanceEventCache = null;
 
 /* ---------- AUTH ---------- */
 
@@ -67,12 +68,22 @@ function rowsToObjects(rows) {
 
 /* ---------- LOADERS ---------- */
 
+async function loadAllData() {
+  await Promise.all([
+    loadInventory(),
+    loadStorageLocations(),
+    loadFoodInstanceEvents()
+  ]);
+}
+
+
 async function loadInventory() {
   if (window._foodInstanceCache) return;
   window._foodInstanceCache = await sheetFetch("FoodInstances!A1:Z");
 }
 
-async function loadStorage() {
+
+async function loadStorageLocations() {
   if (window._storageLocationCache) return;
   window._storageLocationCache = await sheetFetch("StorageLocations!A1:Z");
 
@@ -82,20 +93,40 @@ async function loadStorage() {
   });
 }
 
-async function loadEvents() {
+
+async function loadFoodInstanceEvents() {
   if (window._eventCache) return;
-  window._eventCache = await sheetFetch("Events!A1:Z");
+  window._eventCache = await sheetFetch("FoodInstanceEvents!A1:Z");
 }
 
-async function loadAllData() {
-  await Promise.all([
-    loadInventory(),
-    loadStorage(),
-    loadEvents()
-  ]);
+/* ----------- CREATORS --------------- */
+
+function createFoodInstance() {
+
 }
 
 /* ------------ SAVERS ---------------- */
+
+async function performSave({
+  saveFunction,
+  id,
+  changes,
+  updateCache,
+  afterSave
+}) {
+  try {
+    await saveFunction(id, changes);
+
+    updateCache?.();
+
+    afterSave?.();
+
+  } catch (err) {
+    console.error(err);
+    alert("Error saving data");
+  }
+}
+
 
 async function updateFoodInstance(instanceID, changes) {
   // Find row index
