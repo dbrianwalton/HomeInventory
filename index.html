@@ -296,7 +296,7 @@ function goBack() {
   updateModeButton();
 
   if (currentView === "food-list") {
-    renderHome();
+    renderInventoryView();
   } else if (currentView === "food-item") {
     renderFoodInstanceDetail();
   } else if (currentView === "storage-list") {
@@ -342,7 +342,7 @@ function renderHome() {
   document.getElementById('status-message').innerHTML = "Loading...";
   loadInventory().then(() => {
     document.getElementById('status-message').innerHTML = "";
-    renderInventory();
+    renderInventoryView();
   });
 }
 
@@ -439,7 +439,7 @@ function renderTable({
 }
 
 
-function renderInventory() {
+function renderInventoryView() {
   updateFilterVisibility();
   renderFoodInstanceList();
 }
@@ -1221,6 +1221,7 @@ async function handleStorageScan(storageID) {
 /* ---------- FILTERING ------------ */
 const FILTER_CONFIG = {
   "food-list": {
+    label: "Filter",
     placeholder: "Filter by description or keywords",
 
     getValue: () => inventoryFilter.text || "",
@@ -1262,6 +1263,7 @@ const FILTER_CONFIG = {
   },
 
   "storage-list": {
+    label: "Filter",
     placeholder: "Filter storage",
 
     getValue: () => storageFilter.text || "",
@@ -1290,13 +1292,14 @@ function renderFilterUI() {
 
   document.getElementById('status-controls').innerHTML = `
     <div class="filters-header-row">
+      <span class="filter-label">${config.filters?.label || "Filter"}</span>
 
       ${config.showDate ? `
         <button
           class="filters-toggle"
           aria-expanded="${filtersExpanded}"
         >
-          ${filtersExpanded ? '▾ Filters' : '▸ Filters'}
+          ${filtersExpanded ? '▾' : '▸'}
         </button>
       ` : ''}
 
