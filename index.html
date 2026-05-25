@@ -567,19 +567,7 @@ function showFoodInstance(id) {
 }
 
 async function saveFoodInstance(addAnother = false) {
-
-  currentItem.Label = document.getElementById("fld-label").value;
-  currentItem.Keywords = document.getElementById("fld-keywords").value;
-  currentItem.Notes = document.getElementById("fld-notes").value;
-  currentItem.Size = document.getElementById("fld-size").value;
-  currentItem.Date = document.getElementById("fld-date").value;
-
-  currentItem.StorageType =
-    document.getElementById("fld-storageType")?.value || currentItem.StorageType;
-
-  currentItem.StorageLocationID =
-    document.getElementById("fld-storageLocation")?.value || currentItem.StorageLocationID;
-
+  Object.assign(currentItem, extractFields("food-item"));
   const changes = getChangedFields(originalItem, currentItem);
 
   if (!Object.keys(changes).length) {
@@ -672,10 +660,7 @@ function showStorageLocation(id) {
 }
 
 async function saveStorage() {
-  currentItem.Label = document.getElementById("fld-label").value;
-  currentItem.Notes = document.getElementById("fld-notes").value;
-  currentItem.PhysicalLocation = document.getElementById("fld-physical").value;
-
+  Object.assign(currentItem, extractFields("storage-item"));
   const changes = getChangedFields(originalItem, currentItem);
 
   if (!Object.keys(changes).length) {
@@ -748,7 +733,7 @@ function renderField(field, item, readOnly) {
     }
 
     return `
-      <select data-field="${field.key}">
+      <select id="fld-${field.key}" data-field="${field.key}">
         ${(window._storageLocationCache || []).map(s => `
           <option value="${s.StorageLocationID}"
             ${s.StorageLocationID === value ? "selected" : ""}>
@@ -766,7 +751,7 @@ function renderField(field, item, readOnly) {
     }
 
     return `
-      <select data-field="${field.key}">
+      <select id="fld-${field.key}" data-field="${field.key}">
         ${field.options.map(opt => `
           <option ${opt === value ? "selected" : ""}>${opt}</option>
         `).join('')}
@@ -777,11 +762,26 @@ function renderField(field, item, readOnly) {
   // Default text
   return `
     <input
+      id="${field.key}"
       data-field="${field.key}"
       value="${value}"
       ${readOnly ? "readonly" : ""}
     />
   `;
+}
+
+function extractFields(entityType) {
+  const fields = ENTITY_FIELDS[entityType];
+  const result = {};
+
+  fields.forEach(field => {
+    const el = document.getElementById(`fld-${field.key}`);
+    if (!el) return;
+
+    result[field.key] = el.value;
+  });
+
+  return result;
 }
 
 function renderDetailForm(entityType, item) {
