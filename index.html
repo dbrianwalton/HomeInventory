@@ -1207,6 +1207,9 @@ const FILTER_CONFIG = {
         label: (v) => v,
         onClear: () => {
           inventoryFilter.text = '';
+          const input = document.getElementById("filterInput");
+          if (input) input.value = '';
+
           renderFoodInstanceList();
           renderFilterChips();
         }
@@ -1238,9 +1241,7 @@ const FILTER_CONFIG = {
         getValue: () => storageFilter.text,
         label: (v) => v,
         onClear: () => {
-          storageFilter.text = '';
-          renderStorageList();
-          renderFilterChips();
+          clearTextFilter();
         }
       }
     ]
@@ -1346,7 +1347,7 @@ function buildDatePanel(config) {
   `;
 }
 
-function applyCurrentFilter() {
+function applyTextFilter() {
   const config = FILTER_CONFIG[currentView];
   if (!config) return;
 
@@ -1357,7 +1358,7 @@ function applyCurrentFilter() {
   applyFiltersAndRefresh();
 }
 
-function clearCurrentFilter() {
+function clearTextFilter() {
   const config = FILTER_CONFIG[currentView];
   if (!config) return;
 
@@ -1378,13 +1379,13 @@ function updateFilterVisibility() {
     // text input
     const input = document.getElementById('filterInput');
     if (input) {
-      input.addEventListener('input', applyCurrentFilter);
+      input.addEventListener('input', applyTextFilter);
     }
 
     // clear button
     const clearBtn = document.getElementById('filterClearBtn');
     if (clearBtn) {
-      clearBtn.addEventListener('click', clearCurrentFilter);
+      clearBtn.addEventListener('click', clearTextFilter);
     }
 
     // toggle button
@@ -1447,6 +1448,7 @@ function clearDateFilter() {
   updateFilterVisibility();
   renderFilterChips();
 }
+
 
 function applyFiltersAndRefresh() {
   const config = FILTER_CONFIG[currentView];
