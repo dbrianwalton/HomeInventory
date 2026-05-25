@@ -661,83 +661,6 @@ function showStorageLocation(id) {
   renderStorageDetail();
 }
 
-function renderStorageDetail() {
-  updateFilterVisibility();
-
-  const item = currentItem;
-  const readOnly = itemMode === "view" ? "readonly" : "";
-
-  document.getElementById("cameraButton").disabled = (itemMode === "edit");
-
-  // Gather related food items
-  const related = (window._foodInstanceCache || [])
-    .filter(i => i.StorageLocationID === item.StorageLocationID)
-    .sort((a, b) => parseDate(b.Date) - parseDate(a.Date));
-
-  let html = `
-  <div class="card ${itemMode === "edit" ? "edit-mode" : "view-mode"}">
-    <h2>${item.StorageLocationID}</h2>
-
-    <div class="field-row">
-      <label>Label</label>
-      <input id="fld-label" value="${item.Label || ''}" ${readOnly}
-        ${itemMode === "edit" ? 'oninput="markDirty()"' : ''} />
-    </div>
-
-    <div class="field-row">
-      <label>Notes</label>
-      <input id="fld-notes" value="${item.Notes || ''}" ${readOnly}
-        ${itemMode === "edit" ? 'oninput="markDirty()"' : ''} />
-    </div>
-
-    <div class="field-row">
-      <label>Physical Location</label>
-      <input id="fld-physical" value="${item.PhysicalLocation || ''}" ${readOnly}
-        ${itemMode === "edit" ? 'oninput="markDirty()"' : ''} />
-    </div>
-
-    <!-- Related FoodInstances -->
-    <div id="related-food"></div>
-  `;
-
-  html += `
-    <div style="margin-top: 1rem;">
-      ${
-        itemMode === "view"
-        ? `
-          <button onclick="enterEditMode()">Edit</button>
-          <button onclick="goBack()">Close</button>
-        `
-        : `
-          <button onclick="saveStorage()">Save</button>
-          <button onclick="cancelEdit()">Cancel</button>
-        `
-      }
-    </div>
-  </div>
-  `;
-
-  document.getElementById("content").innerHTML = html;
-
-  const relatedContainer = document.getElementById("related-food");
-
-  renderTable({
-    container: relatedContainer,
-    rows: related,
-    getRowId: r => r.InstanceID,
-    enableSelection: false,
-    onRowClick: (event, id) => {
-      showFoodInstance(id);
-    },
-    columns: [
-      { label: "Date", render: r => r.Date || '' },
-      { label: "ID", render: r => r.InstanceID },
-      { label: "Description", render: r => r.Label || '' },
-      { label: "Status", render: r => r.Status || '' }
-    ]
-});
-}
-
 async function saveStorage() {
   currentItem.Label = document.getElementById("fld-label").value;
   currentItem.Notes = document.getElementById("fld-notes").value;
@@ -940,11 +863,11 @@ function renderFoodInstanceDetail() {
     <div class="card ${itemMode === "edit" ? "edit-mode" : "view-mode"}">
       <h2>${item.InstanceID}</h2>
 
-      ${renderDetailForm("food-item", item)}
-
       <div style="margin-top: 1rem;">
         ${renderDetailActions()}
       </div>
+
+      ${renderDetailForm("food-item", item)}
     </div>
   `;
 
@@ -962,13 +885,13 @@ function renderStorageDetail() {
     <div class="card ${itemMode === "edit" ? "edit-mode" : "view-mode"}">
       <h2>${item.StorageLocationID}</h2>
 
-      ${renderDetailForm("storage-item", item)}
-
-      <div id="related-food"></div>
-
       <div style="margin-top: 1rem;">
         ${renderDetailActions()}
       </div>
+
+      ${renderDetailForm("storage-item", item)}
+
+      <div id="related-food"></div>
     </div>
   `;
 
