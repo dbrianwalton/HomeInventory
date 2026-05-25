@@ -294,16 +294,7 @@ function goBack() {
   itemMode = prev.itemMode;
 
   updateModeButton();
-
-  if (currentView === "food-list") {
-    renderInventoryView();
-  } else if (currentView === "food-item") {
-    renderFoodInstanceDetail();
-  } else if (currentView === "storage-list") {
-    renderStorageView();
-  } else if (currentView === "storage-item") {
-    renderStorageDetail();
-  }
+  renderView();
 }
 
 function showInventory() {
@@ -333,7 +324,7 @@ function showStorage() {
   activeTab = 'storage';
   currentView = "storage-list";
 
-  renderStorageView();
+  renderView();
 }
 
 /* ---------- HOME ---------- */
@@ -345,6 +336,25 @@ function renderHome() {
     renderInventoryView();
   });
 }
+
+function renderView() {
+  if (currentView === "food-list") {
+    renderInventoryView();
+  }
+
+  else if (currentView === "storage-list") {
+    renderStorageView();
+  }
+
+  else if (currentView === "food-item") {
+    renderFoodInstanceDetail();
+  }
+
+  else if (currentView === "storage-item") {
+    renderStorageDetail();
+  }
+}
+
 
 /* ---------- INVENTORY ---------- */
 
@@ -553,7 +563,7 @@ function showFoodInstance(id) {
   itemMode = "view";
 
   updateModeButton();
-  renderFoodInstanceDetail();
+  renderView();
 }
 
 async function saveFoodInstance(addAnother = false) {
@@ -658,7 +668,7 @@ function showStorageLocation(id) {
   itemMode = "view";
 
   updateModeButton();
-  renderStorageDetail();
+  renderView();
 }
 
 async function saveStorage() {
