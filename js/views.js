@@ -179,6 +179,12 @@ const DETAIL_ACTIONS = {
   edit: [
     { action: "save", label: "Save" },
     { action: "cancel", label: "Cancel" }
+  ],
+
+  add: [
+    { action: "save-close", label: "Save & Close" },
+    { action: "save-add", label: "Save & Add New" },
+    { action: "cancel", label: "Cancel" }
   ]
 };
 
@@ -901,7 +907,7 @@ function createEmptyFoodInstance() {
 /* ---------- FORMS ----------- */
 
 
-async function saveFoodInstance(addAnother = false) {
+async function saveFoodInstance(mode = "close") {
   if (itemMode === "add") {
     Object.assign(currentItem, extractFields("food-item"));
 
@@ -915,8 +921,22 @@ async function saveFoodInstance(addAnother = false) {
       }
     });
 
-    resetEditState();
-    showInventory();
+
+    if (mode === "addAnother") {
+      const previous = { ...currentItem };
+
+      currentItem = createEmptyFoodInstance();
+
+      // prefill logic later (Step 6.5)
+      Object.assign(currentItem, previous);
+
+      itemMode = "add";
+      clearDirty();
+      renderView();
+    } else {
+      resetEditState();
+      showInventory();
+    }
 
     return;
   }
@@ -1112,6 +1132,14 @@ function bindDetailEvents() {
           } else if (currentView === "storage-item") {
             saveStorage();
           }
+          break;
+
+        case "save-close":
+          saveFoodInstance("close");
+          break;
+
+        case "save-add":
+          saveFoodInstance("addAnother");
           break;
 
         case "cancel":

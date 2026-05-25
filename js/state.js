@@ -71,11 +71,19 @@ function enterEditMode() {
 }
 
 function cancelEdit() {
+
   if (itemMode === "add") {
+    // No original item — abandon and leave
+    currentItem = null;
+    originalItem = null;
+
+    itemMode = "view";
+    clearDirty();
+
     goBack();
     return;
   }
-
+  
   itemMode = "view";
   clearDirty(); 
   updateModeButton();
