@@ -339,23 +339,13 @@ function exitToListView() {
 /* ---------- HOME ---------- */
 
 function renderView() {
-  if (currentView === "food-list") {
-    renderInventoryView();
-  }
+  const config = VIEW_CONFIG[currentView];
+  if (!config) return;
 
-  else if (currentView === "storage-list") {
-    renderStorageView();
-  }
+  updateFilterVisibility();
 
-  else if (currentView === "food-item") {
-    renderFoodInstanceDetail();
-  }
-
-  else if (currentView === "storage-item") {
-    renderStorageDetail();
-  }
+  config.render();
 }
-
 
 /* ---------- INVENTORY ---------- */
 
@@ -449,11 +439,6 @@ function renderTable({
   }
 }
 
-
-function renderInventoryView() {
-  updateFilterVisibility();
-  renderFoodInstanceList();
-}
 
 function renderFoodInstanceList() {
   let working = window._foodInstanceCache || [];
@@ -596,10 +581,6 @@ async function saveFoodInstance(addAnother = false) {
 }
 
 /* ---------- STORAGE ---------- */
-function renderStorageView() {
-  updateFilterVisibility();
-  renderStorageList();
-}
 
 function renderStorageList() {
   let working = window._storageLocationCache || [];
@@ -683,6 +664,31 @@ async function saveStorage() {
 }
 
 /* -------- VIEW/EDIT ITEM ----------- */
+const VIEW_CONFIG = {
+  "food-list": {
+    type: "list",
+    render: renderFoodInstanceList,
+    showFilters: true
+  },
+
+  "storage-list": {
+    type: "list",
+    render: renderStorageList,
+    showFilters: true
+  },
+
+  "food-item": {
+    type: "detail",
+    render: renderFoodInstanceDetail,
+    showFilters: false
+  },
+
+  "storage-item": {
+    type: "detail",
+    render: renderStorageDetail,
+    showFilters: false
+  }
+};
 
 const ENTITY_FIELDS = {
   "food-item": [
@@ -1267,7 +1273,9 @@ const FILTER_CONFIG = {
 };
 
 function renderFilterUI() {
+  const viewConfig = VIEW_CONFIG[currentView];
   const config = FILTER_CONFIG[currentView];
+
   if (!config) return;
 
   const value = config.getValue();
@@ -1421,10 +1429,27 @@ function updateFilterVisibility() {
     if (to) to.addEventListener('change', applyDateFilter);
   }
   
+  
   const controls = document.getElementById('status-controls');
   const chips = document.getElementById('status-controls-chips');
 
+  const viewConfig = VIEW_CONFIG[currentView];
   const config = FILTER_CONFIG[currentView];
+
+  // If no filters for this view, hide BOTH areas completely
+  if (!viewConfig || viewConfig.showFilters === false) {
+    controls.innerHTML = '';
+    chips.innerHTML = '';
+
+    controls.style.display = 'none';
+    chips.style.display = 'none';
+
+    return;
+  }
+
+  // Otherwise, ensure they are visible
+  controls.style.display = '';
+  chips.style.display = '';
 
   if (!config) {
     controls.innerHTML = '';
