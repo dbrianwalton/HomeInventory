@@ -142,6 +142,7 @@ let storageFilter = {
   text: ''
 };
 
+let statusVisible = false;
 let filtersExpanded = false;
 
 let selectedItems = new Set();
@@ -419,6 +420,26 @@ function goBack() {
 
   updateModeButton();
   renderView();
+}
+
+function showStatus(contentHtml = "") {
+  const status = document.getElementById('status');
+
+  if (contentHtml) {
+    status.innerHTML = contentHtml;
+  }
+
+  status.style.display = '';
+  statusVisible = true;
+}
+
+function hideStatus() {
+  const status = document.getElementById('status');
+
+  status.innerHTML = '';
+  status.style.display = 'none';
+
+  statusVisible = false;
 }
 
 function showInventory() {
@@ -1433,65 +1454,70 @@ function clearTextFilter() {
 }
 
 
-function updateFilterVisibility() {
-  function bindFilterEvents() {
-    const config = FILTER_CONFIG[currentView];
-    if (!config) return;
+function bindFilterEvents() {
+  const config = FILTER_CONFIG[currentView];
+  if (!config) return;
 
-    // text input
-    const input = document.getElementById('filterInput');
-    if (input) {
-      input.addEventListener('input', applyTextFilter);
-    }
-
-    // clear button
-    const clearBtn = document.getElementById('filterClearBtn');
-    if (clearBtn) {
-      clearBtn.addEventListener('click', clearTextFilter);
-    }
-
-    // toggle button
-    const toggleBtn = document.querySelector('.filters-toggle');
-    if (toggleBtn) {
-      toggleBtn.addEventListener('click', toggleFilters);
-    }
-
-    // date inputs
-    const from = document.getElementById('dateFrom');
-    const to = document.getElementById('dateTo');
-
-    if (from) from.addEventListener('change', applyDateFilter);
-    if (to) to.addEventListener('change', applyDateFilter);
+  // text input
+  const input = document.getElementById('filterInput');
+  if (input) {
+    input.addEventListener('input', applyTextFilter);
   }
-  
-  
+
+  // clear button
+  const clearBtn = document.getElementById('filterClearBtn');
+  if (clearBtn) {
+    clearBtn.addEventListener('click', clearTextFilter);
+  }
+
+  // toggle button
+  const toggleBtn = document.querySelector('.filters-toggle');
+  if (toggleBtn) {
+    toggleBtn.addEventListener('click', toggleFilters);
+  }
+
+  // date inputs
+  const from = document.getElementById('dateFrom');
+  const to = document.getElementById('dateTo');
+
+  if (from) from.addEventListener('change', applyDateFilter);
+  if (to) to.addEventListener('change', applyDateFilter);
+}
+
+
+function updateFilterVisibility() {
+
+  const status = document.getElementById('status');
   const controls = document.getElementById('status-controls');
   const chips = document.getElementById('status-controls-chips');
 
   const viewConfig = VIEW_CONFIG[currentView];
   const config = FILTER_CONFIG[currentView];
 
-  // If no filters for this view, hide BOTH areas completely
-  if (!viewConfig || viewConfig.showFilters === false) {
+  // NOT a filter view
+  if (!viewConfig || !viewConfig.showFilters) {
+
+    // Clear any stale UI
     controls.innerHTML = '';
     chips.innerHTML = '';
 
-    controls.style.display = 'none';
-    chips.style.display = 'none';
+    // Only show if explicitly enabled (e.g. status message)
+    status.style.display = statusVisible ? '' : 'none';
 
     return;
   }
 
-  // Otherwise, ensure they are visible
-  controls.style.display = '';
-  chips.style.display = '';
+  // Filter view → show status area
+  status.style.display = '';
 
+  // Guard for missing filter config
   if (!config) {
     controls.innerHTML = '';
     chips.innerHTML = '';
     return;
   }
 
+  // Render filters normally
   renderFilterUI();
   renderFilterChips();
   bindFilterEvents();
