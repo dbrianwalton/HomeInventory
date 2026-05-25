@@ -149,6 +149,136 @@ let selectedItems = new Set();
 let labelStartIndex = 0;
 let labelDrawBoundary = false;
 
+/* ------- CONFIGS --------- */
+
+const VIEW_CONFIG = {
+  "food-list": {
+    type: "list",
+    render: renderFoodInstanceList,
+    showFilters: true
+  },
+
+  "storage-list": {
+    type: "list",
+    render: renderStorageList,
+    showFilters: true
+  },
+
+  "food-item": {
+    type: "detail",
+    render: renderFoodInstanceDetail,
+    showFilters: false
+  },
+
+  "storage-item": {
+    type: "detail",
+    render: renderStorageDetail,
+    showFilters: false
+  }
+};
+
+const FILTER_CONFIG = {
+  "food-list": {
+    label: "Filter",
+    placeholder: "Filter by description or keywords",
+
+    getValue: () => inventoryFilter.text || "",
+    setValue: (v) => { inventoryFilter.text = v; },
+    onApply: renderFoodInstanceList,
+
+    showDate: true,
+    getDateFrom: () => inventoryFilter.dateFrom,
+    getDateTo: () => inventoryFilter.dateTo,
+    clearDate: () => {
+      inventoryFilter.dateFrom = null;
+      inventoryFilter.dateTo = null;
+    },
+
+    chips: [
+      {
+        getValue: () => inventoryFilter.text,
+        label: (v) => v,
+        onClear: () => {
+          inventoryFilter.text = '';
+          const input = document.getElementById("filterInput");
+          if (input) input.value = '';
+
+          renderFoodInstanceList();
+          renderFilterChips();
+        }
+      },
+      {
+        getValue: () => inventoryFilter.dateFrom || inventoryFilter.dateTo ? true : null,
+        label: () => "Date filter",
+        onClear: () => {
+          inventoryFilter.dateFrom = null;
+          inventoryFilter.dateTo = null;
+          renderFoodInstanceList();
+          renderFilterChips();
+        }
+      }
+    ]
+  },
+
+  "storage-list": {
+    label: "Filter",
+    placeholder: "Filter storage",
+
+    getValue: () => storageFilter.text || "",
+    setValue: (v) => { storageFilter.text = v; },
+    onApply: renderStorageList,
+
+    showDate: false,
+
+    chips: [
+      {
+        getValue: () => storageFilter.text,
+        label: (v) => v,
+        onClear: () => {
+          clearTextFilter();
+        }
+      }
+    ]
+  }
+};
+
+const LABEL_CONFIG = {
+  "food-list": {
+    getItems: () =>
+      window._foodInstanceCache.filter(i => selectedItems.has(i.InstanceID)),
+
+    getId: (item) => item.InstanceID,
+    getSupplemental: (item) => item.Date,
+
+    buildQR: (item) => JSON.stringify({ id: item.InstanceID }),
+    
+    fields: [
+      { key: "Label", bold: true, fontSize: 14, maxLines: 2 },
+
+      { key: "Keywords", fontSize: 12, maxLines: 2 },
+      { key: "Notes", fontSize: 12, maxLines: 2 },
+      { key: "Size", fontSize: 12, maxLines: 1 }
+    ]
+  },
+
+  "storage-list": {
+    getItems: () =>
+      window._storageLocationCache.filter(s => selectedItems.has(s.StorageLocationID)),
+
+    getId: (item) => item.StorageLocationID,
+
+    buildQR: (item) => JSON.stringify({ storage: item.StorageLocationID }),
+
+    fields: [
+      { key: "Label", bold: true, fontSize: 14, maxLines: 2 },
+
+      { key: "PhysicalLocation", fontSize: 12, maxLines: 2 },
+      { key: "Notes", fontSize: 12, maxLines: 3 }
+    ]
+  }
+};
+
+
 /* ---------- INIT ---------- */
 
 window.onload = async () => {
@@ -231,37 +361,6 @@ function clearSettings() {
 }
 
 /* ---------- NAV ---------- */
-const VIEW_CONFIG = {
-  "food-list": {
-    list: {
-      render: renderFoodInstanceList
-    },
-    detail: {
-      render: renderFoodInstanceDetail
-    }
-  },
-
-  "storage-list": {
-    list: {
-      render: renderStorageList
-    },
-    detail: {
-      render: renderStorageDetail
-    }
-  },
-
-  "food-item": {
-    detail: {
-      render: renderFoodInstanceDetail
-    }
-  },
-
-  "storage-item": {
-    detail: {
-      render: renderStorageDetail
-    }
-  }
-};
 
 function pushView() {
   navStack.push({
@@ -664,31 +763,6 @@ async function saveStorage() {
 }
 
 /* -------- VIEW/EDIT ITEM ----------- */
-const VIEW_CONFIG = {
-  "food-list": {
-    type: "list",
-    render: renderFoodInstanceList,
-    showFilters: true
-  },
-
-  "storage-list": {
-    type: "list",
-    render: renderStorageList,
-    showFilters: true
-  },
-
-  "food-item": {
-    type: "detail",
-    render: renderFoodInstanceDetail,
-    showFilters: false
-  },
-
-  "storage-item": {
-    type: "detail",
-    render: renderStorageDetail,
-    showFilters: false
-  }
-};
 
 const ENTITY_FIELDS = {
   "food-item": [
@@ -1207,70 +1281,6 @@ async function handleStorageScan(storageID) {
 }
 
 /* ---------- FILTERING ------------ */
-const FILTER_CONFIG = {
-  "food-list": {
-    label: "Filter",
-    placeholder: "Filter by description or keywords",
-
-    getValue: () => inventoryFilter.text || "",
-    setValue: (v) => { inventoryFilter.text = v; },
-    onApply: renderFoodInstanceList,
-
-    showDate: true,
-    getDateFrom: () => inventoryFilter.dateFrom,
-    getDateTo: () => inventoryFilter.dateTo,
-    clearDate: () => {
-      inventoryFilter.dateFrom = null;
-      inventoryFilter.dateTo = null;
-    },
-
-    chips: [
-      {
-        getValue: () => inventoryFilter.text,
-        label: (v) => v,
-        onClear: () => {
-          inventoryFilter.text = '';
-          const input = document.getElementById("filterInput");
-          if (input) input.value = '';
-
-          renderFoodInstanceList();
-          renderFilterChips();
-        }
-      },
-      {
-        getValue: () => inventoryFilter.dateFrom || inventoryFilter.dateTo ? true : null,
-        label: () => "Date filter",
-        onClear: () => {
-          inventoryFilter.dateFrom = null;
-          inventoryFilter.dateTo = null;
-          renderFoodInstanceList();
-          renderFilterChips();
-        }
-      }
-    ]
-  },
-
-  "storage-list": {
-    label: "Filter",
-    placeholder: "Filter storage",
-
-    getValue: () => storageFilter.text || "",
-    setValue: (v) => { storageFilter.text = v; },
-    onApply: renderStorageList,
-
-    showDate: false,
-
-    chips: [
-      {
-        getValue: () => storageFilter.text,
-        label: (v) => v,
-        onClear: () => {
-          clearTextFilter();
-        }
-      }
-    ]
-  }
-};
 
 function renderFilterUI() {
   const viewConfig = VIEW_CONFIG[currentView];
@@ -1803,41 +1813,6 @@ function confirmLabelPrint() {
 }
 
 
-const LABEL_CONFIG = {
-  "food-list": {
-    getItems: () =>
-      window._foodInstanceCache.filter(i => selectedItems.has(i.InstanceID)),
-
-    getId: (item) => item.InstanceID,
-    getSupplemental: (item) => item.Date,
-
-    buildQR: (item) => JSON.stringify({ id: item.InstanceID }),
-    
-    fields: [
-      { key: "Label", bold: true, fontSize: 14, maxLines: 2 },
-
-      { key: "Keywords", fontSize: 12, maxLines: 2 },
-      { key: "Notes", fontSize: 12, maxLines: 2 },
-      { key: "Size", fontSize: 12, maxLines: 1 }
-    ]
-  },
-
-  "storage-list": {
-    getItems: () =>
-      window._storageLocationCache.filter(s => selectedItems.has(s.StorageLocationID)),
-
-    getId: (item) => item.StorageLocationID,
-
-    buildQR: (item) => JSON.stringify({ storage: item.StorageLocationID }),
-
-    fields: [
-      { key: "Label", bold: true, fontSize: 14, maxLines: 2 },
-
-      { key: "PhysicalLocation", fontSize: 12, maxLines: 2 },
-      { key: "Notes", fontSize: 12, maxLines: 3 }
-    ]
-  }
-};
 
 
 async function generateLabelsPDF(skip=0) {
