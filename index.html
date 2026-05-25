@@ -1879,7 +1879,7 @@ function drawFields(doc, item, config, textX, startY) {
 }
 
 
-async function drawLabel(doc, item, x, y, config)
+async function drawLabel(doc, item, x, y, config) {
   const padding = 0.125; // 1/8 inch
 
   const labelWidth = 4;
@@ -1937,7 +1937,7 @@ async function drawLabel(doc, item, x, y, config)
   );
 
   // Supplemental info (e.g. Date)
-  const supplement = config.getSupplemental(id);
+  const supplement = config.getSupplemental?.(item);
   if (supplement) {
     dims = doc.getTextDimensions(supplement);
     textY += dims.h + 0.05;
