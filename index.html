@@ -1896,7 +1896,7 @@ async function drawLabel(doc, item, x, y) {
   doc.setFontSize(14);
   drawClipped(item.Label, 2.3);
 
-  // KEYWORDS and NOTES (smaller)
+  // KEYWORDS, NOTES, and SIZE (smaller)
   doc.setFont(undefined, "normal");
   doc.setFontSize(12);
   if (item.Keywords) {
@@ -1904,6 +1904,9 @@ async function drawLabel(doc, item, x, y) {
   }
   if (item.Notes) {
     drawClipped(item.Notes, 2.3);
+  }
+  if (item.Size) {
+    drawClipped(item.Size, 2.3, 1);
   }
 }
 
