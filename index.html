@@ -1758,7 +1758,51 @@ function confirmLabelPrint() {
   generateLabelsPDF(labelStartIndex);
 }
 
-async function generateLabelsPDF(skip=3) {
+
+const LABEL_CONFIG = {
+  "food-list": {
+    getItems: () =>
+      window._foodInstanceCache.filter(i => selectedItems.has(i.InstanceID)),
+
+    getId: (item) => item.InstanceID,
+    getSupplemental: (item) => item.Date,
+
+    buildQR: (item) => JSON.stringify({ id: item.InstanceID }),
+    
+    fields: [
+      { key: "Label", bold: true, fontSize: 14, maxLines: 2 },
+
+      { key: "Keywords", fontSize: 12, maxLines: 2 },
+      { key: "Notes", fontSize: 12, maxLines: 2 },
+      { key: "Size", fontSize: 12, maxLines: 1 }
+    ]
+  },
+
+  "storage-list": {
+    getItems: () =>
+      window._storageLocationCache.filter(s => selectedItems.has(s.StorageLocationID)),
+
+    getId: (item) => item.StorageLocationID,
+
+    buildQR: (item) => JSON.stringify({ storage: item.StorageLocationID }),
+
+    fields: [
+      { key: "Label", bold: true, fontSize: 14, maxLines: 2 },
+
+      { key: "PhysicalLocation", fontSize: 12, maxLines: 2 },
+      { key: "Notes", fontSize: 12, maxLines: 3 }
+    ]
+  }
+};
+
+
+async function generateLabelsPDF(skip=0) {
+  const config = LABEL_CONFIG[currentView];
+  if (!config) {
+    alert("Labels not supported for this view");
+    return;
+  }
+
   const { jsPDF } = window.jspdf;
 
   const doc = new jsPDF({
@@ -1766,9 +1810,7 @@ async function generateLabelsPDF(skip=3) {
     format: "letter"
   });
 
-  const items = window._foodInstanceCache.filter(i =>
-    selectedItems.has(i.InstanceID)
-  );
+  const items = config.getItems();
 
   if (!items.length) {
     alert("No items selected");
@@ -1797,8 +1839,8 @@ async function generateLabelsPDF(skip=3) {
     const x = marginX + col * (labelWidth+hgap);
     const y = marginY + row * labelHeight;
 
-    await drawLabel(doc, items[i], x, y);
-
+    await drawLabel(doc, items[i], x, y, config);
+    
     index++;
   }
 
@@ -1806,7 +1848,38 @@ async function generateLabelsPDF(skip=3) {
   // doc.save("labels.pdf");
 }
 
-async function drawLabel(doc, item, x, y) {
+function drawFields(doc, item, config, textX, startY) {
+  let textY = startY;
+
+  function drawClipped(text, maxWidth, maxLines = 2) {
+    const lines = doc.splitTextToSize(text || "", maxWidth).slice(0, maxLines);
+
+    lines.forEach(line => {
+      const dims = doc.getTextDimensions(line);
+      doc.text(line, textX, textY + dims.h);
+      textY += dims.h + 0.05;
+    });
+
+    textY += 0.05;
+  }
+
+  config.fields.forEach(field => {
+    const value = item[field.key];
+    if (!value) return;
+
+    // style handling
+    const fontSize = field.fontSize || (field.bold ? 14 : 12);
+    const fontStyle = field.bold ? "bold" : "normal";
+
+    doc.setFont(undefined, fontStyle);
+    doc.setFontSize(fontSize);
+
+    drawClipped(value, 2.3, field.maxLines || 2);
+  });
+}
+
+
+async function drawLabel(doc, item, x, y, config)
   const padding = 0.125; // 1/8 inch
 
   const labelWidth = 4;
@@ -1833,7 +1906,7 @@ async function drawLabel(doc, item, x, y) {
   // QR canvas (temporary)
   const qrTemp = document.createElement("div");
   new QRCode(qrTemp, {
-    text: JSON.stringify({ id: item.InstanceID }),
+    text: config.buildQR(item),
     width: 200,
     height: 200
   });
@@ -1849,65 +1922,37 @@ async function drawLabel(doc, item, x, y) {
     qrSize
   );
 
-  // ID and Date under QR and centered
+  // ID and supplemental info under QR and centered
   doc.setFontSize(12);
 
-  // ID
-  let dims = doc.getTextDimensions(item.InstanceID);
+  const id = config.getId(item);
+
+  let dims = doc.getTextDimensions(id);
   let textY = y + padding + qrSize + dims.h + 0.1;
+
   doc.text(
-    item.InstanceID,
+    id,
     x + padding + (qrSize - dims.w)/2,
     textY
   );
 
-  // Date
-  dims = doc.getTextDimensions(item.Date);
-  textY += dims.h + 0.05;
-  doc.text(
-    item.Date,
-    x + padding + (qrSize - dims.w)/2,
-    textY
-  );
+  // Supplemental info (e.g. Date)
+  const supplement = config.getSupplemental(id);
+  if (supplement) {
+    dims = doc.getTextDimensions(supplement);
+    textY += dims.h + 0.05;
+    doc.text(
+      supplement,
+      x + padding + (qrSize - dims.w)/2,
+      textY
+    );
+  }
 
-
-  // RIGHT SIDE TEXT
+  // RIGHT SIDE
   const textX = x + 1.5;
   textY = y + padding;
 
-  // Helper for clipped text
-  function drawClipped(text, maxWidth, maxLines = 2) {
-    const lines = doc.splitTextToSize(text || "", maxWidth).slice(0, maxLines);
-
-    lines.forEach(line => {
-      // Use actual text height for spacing
-      const dims = doc.getTextDimensions(line);
-      doc.text(line, textX, textY + dims.h);
-
-      textY += dims.h + 0.05; // small padding between lines
-    });
-
-    // Add a little extra spacing between sections (Label / Date / Notes)
-    textY += 0.05;
-  }
-
-  // LABEL (bold + larger)
-  doc.setFont(undefined, "bold");
-  doc.setFontSize(14);
-  drawClipped(item.Label, 2.3);
-
-  // KEYWORDS, NOTES, and SIZE (smaller)
-  doc.setFont(undefined, "normal");
-  doc.setFontSize(12);
-  if (item.Keywords) {
-    drawClipped(item.Keywords, 2.3);
-  }
-  if (item.Notes) {
-    drawClipped(item.Notes, 2.3);
-  }
-  if (item.Size) {
-    drawClipped(item.Size, 2.3, 1);
-  }
+  drawFields(doc, item, config, textX, textY);
 }
 
 /* ------- UTILITIES --------- */
