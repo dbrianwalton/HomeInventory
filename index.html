@@ -208,16 +208,41 @@ const FILTER_CONFIG = {
         }
       },
       {
-        getValue: () => inventoryFilter.dateFrom || inventoryFilter.dateTo ? true : null,
-        label: () => "Date filter",
+        getValue: () => {
+          if (!inventoryFilter.dateFrom && !inventoryFilter.dateTo) return null;
+          return {
+            from: inventoryFilter.dateFrom,
+            to: inventoryFilter.dateTo
+          };
+        },
+
+        label: (v) => {
+          const fmt = (ts) =>
+            ts ? new Date(ts).toISOString().slice(0, 10) : "";
+
+          if (v.from && v.to) {
+            return `${fmt(v.from)} → ${fmt(v.to)}`;
+          }
+
+          if (v.from) {
+            return `From ${fmt(v.from)}`;
+          }
+
+          if (v.to) {
+            return `To ${fmt(v.to)}`;
+          }
+
+          return "Date filter";
+        },
+
         onClear: () => {
           inventoryFilter.dateFrom = null;
           inventoryFilter.dateTo = null;
-          renderFoodInstanceList();
-          renderFilterChips();
+
+          clearDateInputs();
+          applyFiltersAndRefresh();
         }
       }
-    ]
   },
 
   "storage-list": {
@@ -1491,16 +1516,12 @@ function applyDateFilter() {
   applyFiltersAndRefresh();
 }
 
-function clearDateFilter() {
-  inventoryFilter.dateFrom = null;
-  inventoryFilter.dateTo = null;
+function clearDateInputs() {
+  const from = document.getElementById('dateFrom');
+  const to = document.getElementById('dateTo');
 
-  document.getElementById('dateFrom').value = '';
-  document.getElementById('dateTo').value = '';
-
-  renderFoodInstanceList();
-  updateFilterVisibility();
-  renderFilterChips();
+  if (from) from.value = '';
+  if (to) to.value = '';
 }
 
 
