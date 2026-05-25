@@ -156,116 +156,110 @@ const VIEW_CONFIG = {
   "food-list": {
     type: "list",
     render: renderFoodInstanceList,
-    showFilters: true
+
+    filters: {
+      label: "Filter",
+      placeholder: "Filter by description or keywords",
+
+      getValue: () => inventoryFilter.text || "",
+      setValue: (v) => { inventoryFilter.text = v; },
+      onApply: renderFoodInstanceList,
+
+      showDate: true,
+      getDateFrom: () => inventoryFilter.dateFrom,
+      getDateTo: () => inventoryFilter.dateTo,
+      clearDate: () => {
+        inventoryFilter.dateFrom = null;
+        inventoryFilter.dateTo = null;
+      },
+
+      chips: [
+        {
+          getValue: () => inventoryFilter.text,
+          label: (v) => v,
+          onClear: () => {
+            inventoryFilter.text = '';
+            const input = document.getElementById("filterInput");
+            if (input) input.value = '';
+
+            renderFoodInstanceList();
+            renderFilterChips();
+          }
+        },
+        {
+          getValue: () => {
+            if (!inventoryFilter.dateFrom && !inventoryFilter.dateTo) return null;
+            return {
+              from: inventoryFilter.dateFrom,
+              to: inventoryFilter.dateTo
+            };
+          },
+
+          label: (v) => {
+            const fmt = (ts) =>
+              ts ? new Date(ts).toISOString().slice(0, 10) : "";
+
+            if (v.from && v.to) {
+              return `${fmt(v.from)} → ${fmt(v.to)}`;
+            }
+
+            if (v.from) {
+              return `From ${fmt(v.from)}`;
+            }
+
+            if (v.to) {
+              return `To ${fmt(v.to)}`;
+            }
+
+            return "Date filter";
+          },
+
+          onClear: () => {
+            inventoryFilter.dateFrom = null;
+            inventoryFilter.dateTo = null;
+
+            clearDateInputs();
+            applyFiltersAndRefresh();
+          }
+        }
+      ]
+    }
   },
 
   "storage-list": {
     type: "list",
     render: renderStorageList,
-    showFilters: true
+
+    filters: {
+      label: "Filter",
+      placeholder: "Filter storage",
+
+      getValue: () => storageFilter.text || "",
+      setValue: (v) => { storageFilter.text = v; },
+      onApply: renderStorageList,
+
+      showDate: false,
+
+      chips: [
+        {
+          getValue: () => storageFilter.text,
+          label: (v) => v,
+          onClear: () => {
+            clearTextFilter();
+          }
+        }
+      ]
+    }
   },
 
   "food-item": {
     type: "detail",
-    render: renderFoodInstanceDetail,
-    showFilters: false
+    render: renderFoodInstanceDetail
   },
 
   "storage-item": {
     type: "detail",
-    render: renderStorageDetail,
-    showFilters: false
-  }
-};
-
-const FILTER_CONFIG = {
-  "food-list": {
-    label: "Filter",
-    placeholder: "Filter by description or keywords",
-
-    getValue: () => inventoryFilter.text || "",
-    setValue: (v) => { inventoryFilter.text = v; },
-    onApply: renderFoodInstanceList,
-
-    showDate: true,
-    getDateFrom: () => inventoryFilter.dateFrom,
-    getDateTo: () => inventoryFilter.dateTo,
-    clearDate: () => {
-      inventoryFilter.dateFrom = null;
-      inventoryFilter.dateTo = null;
-    },
-
-    chips: [
-      {
-        getValue: () => inventoryFilter.text,
-        label: (v) => v,
-        onClear: () => {
-          inventoryFilter.text = '';
-          const input = document.getElementById("filterInput");
-          if (input) input.value = '';
-
-          renderFoodInstanceList();
-          renderFilterChips();
-        }
-      },
-      {
-        getValue: () => {
-          if (!inventoryFilter.dateFrom && !inventoryFilter.dateTo) return null;
-          return {
-            from: inventoryFilter.dateFrom,
-            to: inventoryFilter.dateTo
-          };
-        },
-
-        label: (v) => {
-          const fmt = (ts) =>
-            ts ? new Date(ts).toISOString().slice(0, 10) : "";
-
-          if (v.from && v.to) {
-            return `${fmt(v.from)} → ${fmt(v.to)}`;
-          }
-
-          if (v.from) {
-            return `From ${fmt(v.from)}`;
-          }
-
-          if (v.to) {
-            return `To ${fmt(v.to)}`;
-          }
-
-          return "Date filter";
-        },
-
-        onClear: () => {
-          inventoryFilter.dateFrom = null;
-          inventoryFilter.dateTo = null;
-
-          clearDateInputs();
-          applyFiltersAndRefresh();
-        }
-      }
-    ]
-  },
-
-  "storage-list": {
-    label: "Filter",
-    placeholder: "Filter storage",
-
-    getValue: () => storageFilter.text || "",
-    setValue: (v) => { storageFilter.text = v; },
-    onApply: renderStorageList,
-
-    showDate: false,
-
-    chips: [
-      {
-        getValue: () => storageFilter.text,
-        label: (v) => v,
-        onClear: () => {
-          clearTextFilter();
-        }
-      }
-    ]
+    render: renderStorageDetail
   }
 };
 
@@ -1329,8 +1323,7 @@ async function handleStorageScan(storageID) {
 /* ---------- FILTERING ------------ */
 
 function renderFilterUI() {
-  const viewConfig = VIEW_CONFIG[currentView];
-  const config = FILTER_CONFIG[currentView];
+  const config = VIEW_CONFIG[currentView].filters;
 
   if (!config) return;
 
@@ -1364,7 +1357,7 @@ function renderFilterUI() {
 }
 
 function renderFilterChips() {
-  const config = FILTER_CONFIG[currentView];
+  const config = VIEW_CONFIG[currentView].filters;
   if (!config?.chips) return;
 
   const chips = config.chips
@@ -1431,7 +1424,7 @@ function buildDatePanel(config) {
 }
 
 function applyTextFilter() {
-  const config = FILTER_CONFIG[currentView];
+  const config = VIEW_CONFIG[currentView].filters;
   if (!config) return;
 
   const input = document.getElementById('filterInput');
@@ -1442,7 +1435,7 @@ function applyTextFilter() {
 }
 
 function clearTextFilter() {
-  const config = FILTER_CONFIG[currentView];
+  const config = VIEW_CONFIG[currentView].filters;
   if (!config) return;
 
   config.setValue('');
@@ -1455,7 +1448,7 @@ function clearTextFilter() {
 
 
 function bindFilterEvents() {
-  const config = FILTER_CONFIG[currentView];
+  const config = VIEW_CONFIG[currentView].filters;
   if (!config) return;
 
   // text input
@@ -1492,10 +1485,9 @@ function updateFilterVisibility() {
   const chips = document.getElementById('status-controls-chips');
 
   const viewConfig = VIEW_CONFIG[currentView];
-  const config = FILTER_CONFIG[currentView];
 
   // NOT a filter view
-  if (!viewConfig || !viewConfig.showFilters) {
+  if (!viewConfig || !viewConfig.filters) {
 
     // Clear any stale UI
     controls.innerHTML = '';
@@ -1511,7 +1503,7 @@ function updateFilterVisibility() {
   status.style.display = '';
 
   // Guard for missing filter config
-  if (!config) {
+  if (!viewConfig.filters) {
     controls.innerHTML = '';
     chips.innerHTML = '';
     return;
@@ -1525,7 +1517,7 @@ function updateFilterVisibility() {
 
 
 function applyDateFilter() {
-  const config = FILTER_CONFIG[currentView];
+  const config = VIEW_CONFIG[currentView].filters;
   if (!config) return;
 
   const from = document.getElementById('dateFrom');
@@ -1552,7 +1544,7 @@ function clearDateInputs() {
 
 
 function applyFiltersAndRefresh() {
-  const config = FILTER_CONFIG[currentView];
+  const config = VIEW_CONFIG[currentView].filters;
   if (!config) return;
 
   config.onApply();       // update list
