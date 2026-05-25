@@ -125,6 +125,27 @@ button {
   cursor: pointer;
 }
 
+input,
+select {
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 6px 8px;
+  background-color: #fff;
+}
+
+input.empty,
+select.empty {
+  border: 1px dashed #999;
+  background-color: #fafafa;
+}
+
+input:focus,
+select:focus {
+  outline: none;
+  border-color: #4a90e2;
+  box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.2);
+}
+
 /* ------------- SETTINGS ----------- */
 
 .settings-panel {

@@ -994,6 +994,7 @@ async function saveStorage() {
 
 function renderField(field, item, readOnly) {
   const value = item[field.key] || '';
+  const isEmpty = !value;
 
   // Storage special case
   if (field.type === "storage-select") {
@@ -1027,7 +1028,11 @@ function renderField(field, item, readOnly) {
     }
 
     return `
-      <select id="fld-${field.key}" data-field="${field.key}">
+      <select
+        id="fld-${field.key}"
+        data-field="${field.key}"
+        class="${isEmpty ? 'empty' : ''}"
+      >
         ${field.options.map(opt => `
           <option ${opt === value ? "selected" : ""}>${opt}</option>
         `).join('')}
@@ -1041,6 +1046,7 @@ function renderField(field, item, readOnly) {
       id="${field.key}"
       data-field="${field.key}"
       value="${value}"
+      class="${isEmpty ? 'empty' : ''}"
       ${readOnly ? "readonly" : ""}
     />
   `;
@@ -1095,6 +1101,9 @@ function bindDetailEvents() {
     el.addEventListener("input", () => {
       const key = el.dataset.field;
       currentItem[key] = el.value;
+
+      el.classList.toggle("empty", !el.value);
+
       markDirty();
     });
 
