@@ -231,6 +231,37 @@ function clearSettings() {
 }
 
 /* ---------- NAV ---------- */
+const VIEW_CONFIG = {
+  "food-list": {
+    list: {
+      render: renderFoodInstanceList
+    },
+    detail: {
+      render: renderFoodInstanceDetail
+    }
+  },
+
+  "storage-list": {
+    list: {
+      render: renderStorageList
+    },
+    detail: {
+      render: renderStorageDetail
+    }
+  },
+
+  "food-item": {
+    detail: {
+      render: renderFoodInstanceDetail
+    }
+  },
+
+  "storage-item": {
+    detail: {
+      render: renderStorageDetail
+    }
+  }
+};
 
 function pushView() {
   navStack.push({
@@ -269,7 +300,7 @@ function goBack() {
   } else if (currentView === "food-item") {
     renderFoodInstanceDetail();
   } else if (currentView === "storage-list") {
-    renderStorageList();
+    renderStorageView();
   } else if (currentView === "storage-item") {
     renderStorageDetail();
   }
@@ -302,7 +333,7 @@ function showStorage() {
   activeTab = 'storage';
   currentView = "storage-list";
 
-  renderStorageList();
+  renderStorageView();
 }
 
 /* ---------- HOME ---------- */
@@ -567,9 +598,12 @@ async function saveFoodInstance(addAnother = false) {
 }
 
 /* ---------- STORAGE ---------- */
+function renderStorageView() {
+  updateFilterVisibility();
+  renderStorageList();
+}
 
 function renderStorageList() {
-  updateFilterVisibility();
   let working = window._storageLocationCache || [];
 
   if (storageFilter.text) {
