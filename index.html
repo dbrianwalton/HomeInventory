@@ -160,7 +160,7 @@ window.onload = async () => {
   await initAuth();  // OAuth from external JS
 
   await loadAllData();
-  renderHome();
+  renderView();
 };
 
 window.addEventListener("beforeunload", (e) => {
@@ -307,7 +307,7 @@ function showInventory() {
   document.getElementById("modeButton").style.display = "block";
   
   updateModeButton();
-  renderHome();
+  renderView();
 }
 
 function showEvents() {
@@ -323,19 +323,20 @@ function showStorage() {
 
   activeTab = 'storage';
   currentView = "storage-list";
-
   renderView();
 }
 
-/* ---------- HOME ---------- */
-
-function renderHome() {
-  document.getElementById('status-message').innerHTML = "Loading...";
-  loadInventory().then(() => {
-    document.getElementById('status-message').innerHTML = "";
-    renderInventoryView();
-  });
+function exitToListView() {
+  if (currentView === "food-item") {
+    showInventory();
+  } else if (currentView === "storage-item") {
+    showStorage();
+  }
 }
+
+
+
+/* ---------- HOME ---------- */
 
 function renderView() {
   if (currentView === "food-list") {
@@ -575,24 +576,23 @@ async function saveFoodInstance(addAnother = false) {
     return;
   }
 
-  try {
-    await updateFoodInstance(currentItem.InstanceID, changes);
+  await performSave({
+    saveFunction: updateFoodInstance,
+    id: currentItem.InstanceID,
+    changes,
 
-    // update local cache to reflect changes
-    const idx = window._foodInstanceCache.findIndex(
-      i => i.InstanceID === currentItem.InstanceID
-    );
-    if (idx !== -1) {
-      window._foodInstanceCache[idx] = { ...currentItem };
+    updateCache: () => {
+      const idx = window._foodInstanceCache.findIndex(
+        i => i.InstanceID === currentItem.InstanceID
+      );
+      if (idx !== -1) {
+        window._foodInstanceCache[idx] = { ...currentItem };
+      }
     }
+  });
 
-    isDirty = false;
-    showInventory();
-
-  } catch (err) {
-    console.error(err);
-    alert("Error saving data");
-  }
+  resetEditState();
+  exitToListView();
 }
 
 /* ---------- STORAGE ---------- */
@@ -668,14 +668,18 @@ async function saveStorage() {
     return;
   }
 
-  await updateStorageLocation(currentItem.StorageLocationID, changes);
+  await performSave({
+    saveFn: updateStorageLocation,
+    id: currentItem.StorageLocationID,
+    changes,
 
-  Object.assign(originalItem, currentItem);
+    updateCache: () => {
+      Object.assign(originalItem, currentItem);
+    }
+  });
 
-  isDirty = false;
-  itemMode = "view";
-
-  renderStorageDetail();
+  resetEditState();
+  renderView();
 }
 
 /* -------- VIEW/EDIT ITEM ----------- */
@@ -782,6 +786,51 @@ function extractFields(entityType) {
   });
 
   return result;
+}
+
+async function performSave({
+  saveFunction,
+  id,
+  changes,
+  updateCache,
+  afterSave
+}) {
+  try {
+    await saveFunction(id, changes);
+
+    updateCache?.();
+
+    afterSave?.();
+
+  } catch (err) {
+    console.error(err);
+    alert("Error saving data");
+  }
+}
+
+function resetEditState() {
+  isDirty = false;
+  itemMode = "view";
+  updateModeButton();
+}
+
+
+function finalizeEdit({ stayOnPage = false } = {}) {
+  isDirty = false;
+  itemMode = "view";
+
+  updateModeButton();
+
+  if (stayOnPage) {
+    renderView();
+  } else {
+    // go back to list
+    if (currentView === "food-item") {
+      showInventory();
+    } else if (currentView === "storage-item") {
+      showStorage();
+    }
+  }
 }
 
 function renderDetailForm(entityType, item) {
