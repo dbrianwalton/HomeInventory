@@ -936,16 +936,15 @@ async function performSave({
 }
 
 function resetEditState() {
-  isDirty = false;
   itemMode = "view";
+  clearDirty();
   updateModeButton();
 }
 
 
 function finalizeEdit({ stayOnPage = false } = {}) {
-  isDirty = false;
   itemMode = "view";
-
+  clearDirty();
   updateModeButton();
 
   if (stayOnPage) {
