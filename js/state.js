@@ -2,7 +2,7 @@ let currentView = "food-list"; // "inventory" | "item"
 let currentItem = null;
 let originalItem = null;
 
-let itemMode = "view"; // "view" | "edit"
+let itemMode = "view"; // "view" | "edit" | "add"
 let isDirty = false;
 
 let statusVisible = false;
@@ -71,6 +71,11 @@ function enterEditMode() {
 }
 
 function cancelEdit() {
+  if (itemMode === "add") {
+    goBack();
+    return;
+  }
+
   itemMode = "view";
   clearDirty(); 
   updateModeButton();

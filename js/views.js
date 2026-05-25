@@ -450,10 +450,17 @@ function renderFoodInstanceList() {
   });
 
   
-  const container = document.getElementById('content');
+  const content = document.getElementById('content');
+
+  content.innerHTML = `
+    <div class="list-actions">
+      <button onclick="addFoodInstance()">＋</button>
+    </div>
+    <div id="food-table-container"></div>
+  `;
 
   renderTable({
-    container,
+    container: document.getElementById("food-table-container"),
     rows: sorted,
     getRowId: r => r.InstanceID,
     enableSelection: true,
@@ -536,10 +543,11 @@ function renderFoodInstanceDetail() {
   updateFilterVisibility();
 
   const item = currentItem;
+  const isAdd = itemMode === "add";
 
   let html = `
     <div class="card ${itemMode === "edit" ? "edit-mode" : "view-mode"}">
-      <h2>${item.InstanceID}</h2>
+      <h2>${isAdd ? "New Food Instance" : item.InstanceID}</h2>
 
       <div style="margin-top: 1rem;">
         ${renderDetailActions()}
@@ -682,6 +690,11 @@ function toggleMode() {
 
 function updateModeButton() {
   const btn = document.getElementById("modeButton");
+
+  if (itemMode === "add") {
+    btn.textContent = "➕";
+    return;
+  }
 
   if (currentView === "food-list" || currentView === "storage-list") {
     btn.textContent = interactionMode === "select" ? "✅" : "🔍";
@@ -857,11 +870,57 @@ function updateSelectionUI() {
   }
 }
 
+/* --------- ADD ---------- */
+function addFoodInstance() {
+  pushView();
+
+  currentView = "food-item";
+  itemMode = "add";
+
+  currentItem = createEmptyFoodInstance();
+  originalItem = null;
+
+  clearDirty();
+  updateModeButton();
+  renderView();
+}
+
+function createEmptyFoodInstance() {
+  return {
+    Model: "unit",
+    Category: "",
+    Label: "",
+    Keywords: "",
+    Notes: "",
+    Size: "",
+    Date: "",
+    StorageLocationID: null
+  };
+}
 
 /* ---------- FORMS ----------- */
 
 
 async function saveFoodInstance(addAnother = false) {
+  if (itemMode === "add") {
+    Object.assign(currentItem, extractFields("food-item"));
+
+    await performSave({
+      saveFunction: createFoodInstance,   // your stub ✅
+      id: null,
+      changes: currentItem,
+      updateCache: () => {
+        // temporary — push into cache
+        window._foodInstanceCache.push(currentItem);
+      }
+    });
+
+    resetEditState();
+    showInventory();
+
+    return;
+  }
+
   Object.assign(currentItem, extractFields("food-item"));
   const changes = getChangedFields(originalItem, currentItem);
 
