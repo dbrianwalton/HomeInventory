@@ -1022,6 +1022,10 @@ function renderField(field, item, readOnly) {
 
     return `
       <select id="fld-${field.key}" data-field="${field.key}">
+        <option value="" ${!value ? "selected" : ""}>
+          -- Unassigned --
+        </option>
+
         ${(window._storageLocationCache || []).map(s => `
           <option value="${s.StorageLocationID}"
             ${s.StorageLocationID === value ? "selected" : ""}>
