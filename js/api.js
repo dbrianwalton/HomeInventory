@@ -111,31 +111,27 @@ async function loadCounters() {
 }
 
 async function incrementCounter(key) {
-  await loadCounters();
-
-  const current = window._countersCache[key] || 0;
-  const next = current + 1;
-
-  // ✅ Update cache immediately
-  window._countersCache[key] = next;
-
-  // ✅ Find the row index in sheet
+  // ALWAYS fetch fresh data
   const rows = await sheetFetchRaw("Counters!A1:B");
 
   let rowIndex = -1;
+  let current = 0;
 
   for (let i = 1; i < rows.length; i++) {
     if (rows[i][0] === key) {
-      rowIndex = i + 1; // +1 for sheet index
+      rowIndex = i + 1;        // sheet row (1-based)
+      current = parseInt(rows[i][1] || "0", 10);
       break;
     }
   }
 
   if (rowIndex === -1) {
-    throw new Error(`Counter key '${key}' not found in sheet`);
+    throw new Error(`Counter key '${key}' not found`);
   }
 
-  // ✅ Update value in column B
+  const next = current + 1;
+
+  // ✅ Write updated value
   const url = `https://sheets.googleapis.com/v4/spreadsheets/${getSheetId()}/values/Counters!B${rowIndex}?valueInputOption=USER_ENTERED`;
 
   const res = await fetch(url, {
@@ -155,6 +151,7 @@ async function incrementCounter(key) {
 
   return next;
 }
+
 
 
 async function loadAllData() {
