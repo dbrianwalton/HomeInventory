@@ -196,8 +196,28 @@ async function loadStorageLocations() {
 
 
 async function loadFoodInstanceEvents() {
-  if (window._eventCache) return;
-  window._eventCache = await sheetFetch("FoodInstanceEvents!A1:Z");
+  if (window._foodInstanceEventCache) return;
+
+  const rows = await sheetFetch("FoodInstanceEvents!A1:Z");
+
+  if (!rows.length) {
+    window._foodInstanceEventHeaders = [];
+    window._foodInstanceEventCache = [];
+    return;
+  }
+
+  const headers = rows[0];
+  const dataRows = rows.slice(1);
+
+  window._foodInstanceEventHeaders = headers;
+  window._foodInstanceEventCache =
+    rowsToObjects([headers, ...dataRows]).
+    map(e => ({
+      ...e,
+      Quantity: e.Quantity ? Number(e.Quantity) : 0,
+      Timestamp: e.Timestamp ? Number(e.Timestamp) : 0,
+      Active: (e.Active === false || e.Active === "FALSE") ? false : true
+    }));
 }
 
 /* ----------- CREATORS --------------- */
@@ -242,6 +262,44 @@ async function appendFoodInstanceRow(item) {
   const row = headers.map(h => item[h] ?? "");
 
   await appendRowToSheet("FoodInstances", row);
+}
+
+async function createFoodInstanceEvent(event) {
+  const headers = window._foodInstanceEventHeaders;
+
+  if (!headers?.length) {
+    throw new Error("Headers not loaded — cannot create event");
+  }
+
+  const newID = await getNextID("FoodInstanceEvent");
+
+  const base = {};
+  headers.forEach(h => {
+      base[h] = event[h] ?? "";
+    });
+
+  const fullEvent = {
+    ...base,
+    EventID: newID,
+    Timestamp: Date.now(),
+    Active: true,
+    Quantity: base.Quantity ? Number(base.Quantity) : 0
+  };
+
+  await appendFoodInstanceEventRow(fullEvent);
+
+  // update cache immediately
+  window._foodInstanceEventCache.push(fullEvent);
+
+  return fullEvent;
+}
+
+async function appendFoodInstanceEventRow(event) {
+  const headers = window._foodInstanceEventHeaders;
+
+  const row = headers.map(h => event[h] ?? "");
+
+  await appendRowToSheet("FoodInstanceEvents", row);
 }
 
 /* ------------ SAVERS ---------------- */

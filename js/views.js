@@ -165,18 +165,21 @@ const LABEL_CONFIG = {
 
 const ENTITY_FIELDS = {
   "food-item": [
-    { key: "StorageLocationID", label: "Storage Location", type: "storage-select" },
+    { key: "Model", label: "Model",
+      type: "select",
+      options: ["unit", "inventory"]
+    },
+    {
+      key: "Category", label: "Category",
+      type: "select",
+      options: ["freeze-dried","frozen","canned","home-canned","packaged","bulk"]
+    },
     { key: "Label", label: "Label", type: "text" },
     { key: "Keywords", label: "Keywords", type: "text" },
     { key: "Notes", label: "Notes", type: "text" },
     { key: "Size", label: "Size", type: "text" },
     { key: "Date", label: "Date", type: "text" },
-    {
-      key: "StorageType",
-      label: "Storage Type",
-      type: "select",
-      options: ["Freeze-Dried","Frozen","Bottled","Canned","Boxed","Other"]
-    }
+    { key: "StorageLocationID", label: "Storage Location", type: "storage-select" }
   ],
 
   "storage-item": [
