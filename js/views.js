@@ -1671,3 +1671,74 @@ function parseDate(value) {
 function getEventsForInstance(instanceID) {
   return foodInstanceEventMap[instanceID] || [];
 }
+
+function computeInventoryState(instanceID) {
+  const events = getEventsForInstance(instanceID);
+
+  if (!events.length) {
+    return {
+      quantity: null,
+      isAnchored: false,
+      hasEvents: false
+    };
+  }
+
+  // Step 1: filter active only
+  const activeEvents = events.filter(e => e.Active !== false);
+
+  if (!activeEvents.length) {
+    return {
+      quantity: null,
+      isAnchored: false,
+      hasEvents: false
+    };
+  }
+
+  // Step 2: sort newest → oldest
+  const sorted = [...activeEvents].sort((a, b) => b.Timestamp - a.Timestamp);
+
+  // Step 3: find last INVENTORY (first in this order)
+  let anchorIndex = sorted.findIndex(e => e.EventType === "INVENTORY");
+
+  let slice;
+
+  if (anchorIndex !== -1) {
+    slice = sorted.slice(0, anchorIndex + 1);
+  } else {
+    slice = sorted;
+  }
+
+  // Step 4: compute (iterate oldest → newest for clarity)
+  let total = 0;
+
+  const chronological = [...slice].reverse();
+
+  const hasAnchor = anchorIndex !== -1;
+
+  chronological.forEach(e => {
+    if (e.EventType === "INVENTORY") {
+      total = e.Quantity;
+    } else if (e.EventType === "ADD") {
+      total += e.Quantity;
+    }
+  });
+
+  return {
+    quantity: total,
+    isAnchored: hasAnchor,
+    hasEvents: true
+  };
+}
+
+function formatInventoryQuantity(state) {
+  if (!state.hasEvents || state.quantity === null) {
+    return "-";
+  }
+
+  if (!state.isAnchored) {
+    return state.quantity + "+";
+  }
+
+  return String(state.quantity);
+}
+``
