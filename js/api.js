@@ -83,6 +83,80 @@ function rowsToObjects(rows) {
 
 /* ---------- LOADERS ---------- */
 
+async function loadCounters() {
+  if (window._countersCache) return;
+
+  const rows = await sheetFetchRaw("Counters!A1:B");
+
+  if (!rows.length) {
+    window._countersCache = {};
+    return;
+  }
+
+  const headers = rows[0]; // ["Key", "Value"]
+  const dataRows = rows.slice(1);
+
+  const map = {};
+
+  dataRows.forEach(row => {
+    const key = row[0];
+    const value = parseInt(row[1] || "0", 10);
+
+    if (key) {
+      map[key] = value;
+    }
+  });
+
+  window._countersCache = map;
+}
+
+async function incrementCounter(key) {
+  await loadCounters();
+
+  const current = window._countersCache[key] || 0;
+  const next = current + 1;
+
+  // ✅ Update cache immediately
+  window._countersCache[key] = next;
+
+  // ✅ Find the row index in sheet
+  const rows = await sheetFetchRaw("Counters!A1:B");
+
+  let rowIndex = -1;
+
+  for (let i = 1; i < rows.length; i++) {
+    if (rows[i][0] === key) {
+      rowIndex = i + 1; // +1 for sheet index
+      break;
+    }
+  }
+
+  if (rowIndex === -1) {
+    throw new Error(`Counter key '${key}' not found in sheet`);
+  }
+
+  // ✅ Update value in column B
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${getSheetId()}/values/Counters!B${rowIndex}?valueInputOption=USER_ENTERED`;
+
+  const res = await fetch(url, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      values: [[next]]
+    })
+  });
+
+  if (!res.ok) {
+    throw new Error("Failed to update counter");
+  }
+
+  return next;
+}
+
+
 async function loadAllData() {
   await Promise.all([
     loadInventory(),
@@ -131,21 +205,18 @@ async function loadFoodInstanceEvents() {
 
 /* ----------- CREATORS --------------- */
 
-function getNextInstanceID() {
-  const items = window._foodInstanceCache || [];
+async function getNextID(type) {
+  if (!ID_CONFIG[type]) {
+    throw new Error(`Unknown ID type: ${type}`);
+  }
 
-  let max = 0;
+  const next = await incrementCounter(type);
 
-  items.forEach(i => {
-    const match = i.InstanceID?.match(/^FI(\d+)$/);
-    if (match) {
-      const num = parseInt(match[1], 10);
-      if (num > max) max = num;
-    }
-  });
+  const prefix = ID_CONFIG[type];
 
-  return "FI-" + String(max + 1).padStart(5, "0");
+  return prefix + String(next).padStart(5, "0");
 }
+
 
 
 async function createFoodInstance(item) {
@@ -155,7 +226,7 @@ async function createFoodInstance(item) {
     throw new Error("Headers not loaded — cannot create item");
   }
 
-  const newID = getNextInstanceID();
+  const newID = await getNextID("FoodInstance");
 
   const newItem = {
     ...item,

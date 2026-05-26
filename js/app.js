@@ -79,3 +79,13 @@ window.addEventListener("beforeunload", (e) => {
     e.returnValue = "";
   }
 });
+
+/* ---------- PREFIXES ------------- */
+
+const ID_CONFIG = {
+  FoodInstance: "FI",
+  StorageLocation: "SL",
+  FoodInstanceEvent: "EV",
+  ProductionEvent: "PE"
+  // add more types here as needed
+};
