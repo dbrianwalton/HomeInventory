@@ -43,6 +43,21 @@ async function initAuth() {
 
 /* ---------- API FETCH ---------- */
 
+async function sheetFetchRaw(range) {
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${getSheetId()}/values/${range}`;
+
+  const res = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`
+    }
+  });
+
+  const data = await res.json();
+
+  return data.values || [];
+}
+
+
 async function sheetFetch(range) {
   const url = `https://sheets.googleapis.com/v4/spreadsheets/${getSheetId()}/values/${range}`;
 
@@ -79,7 +94,22 @@ async function loadAllData() {
 
 async function loadInventory() {
   if (window._foodInstanceCache) return;
-  window._foodInstanceCache = await sheetFetch("FoodInstances!A1:Z");
+
+  const rows = await sheetFetchRaw("FoodInstances!A1:Z");
+
+  if (!rows.length) {
+    window._foodInstanceHeaders = [];
+    window._foodInstanceCache = [];
+    return;
+  }
+
+  // ✅ Extract headers
+  const headers = rows[0];
+  window._foodInstanceHeaders = headers;
+
+  // ✅ Convert remaining rows
+  const dataRows = rows.slice(1);
+  window._foodInstanceCache = rowsToObjects([headers, ...dataRows]);
 }
 
 
@@ -119,6 +149,12 @@ function getNextInstanceID() {
 
 
 async function createFoodInstance(item) {
+  const headers = window._foodInstanceHeaders;
+
+  if (!headers || !headers.length) {
+    throw new Error("Headers not loaded — cannot create item");
+  }
+
   const newID = getNextInstanceID();
 
   const newItem = {
