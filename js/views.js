@@ -555,9 +555,8 @@ function renderFoodInstanceDetail() {
 
   let html = `
     <div class="card ${isEditable ? "edit-mode" : "view-mode"}">
-      <h2>New Food Instance</h2>
-      <div class="subtle-note">
       <h2>${isAdd ? "New Food Instance" : item.InstanceID}</h2>
+      <div id="new-item-note" class="subtle-note"></div>
 
       <div style="margin-top: 1rem;">
         ${renderDetailActions()}
