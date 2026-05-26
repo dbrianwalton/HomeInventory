@@ -374,30 +374,26 @@ body.select-mode .inventory-table tbody tr {
 }
 
 /* Date inputs — shrink to fit content */
-.filter-date {
+#filters-panel .filter-date {
   width: 8.5rem;   /* tight but readable */
   padding: 0.2rem 0.3rem;
 }
 
 /* Optional: tighten dash spacing */
-.filter-dash {
+#filters-panel .filter-dash {
   margin: 0 0.2rem;
 }
 
 /* Storage dropdown — compact */
-.filter-select-compact {
+#filters-panel .filter-select-compact {
   width: auto;
   min-width: 7rem;
   padding: 0.2rem 0.3rem;
 }
 
 /* Spacing before second label */
-.filter-label-spaced {
+#filters-panel .filter-label-spaced {
   margin-left: 1rem;
-}
-
-.date-range-sep {
-  color: #777;
 }
 
 .chip {
