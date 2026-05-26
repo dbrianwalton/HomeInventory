@@ -189,6 +189,18 @@ const DETAIL_ACTIONS = {
 };
 
 
+const FIELD_TYPES = {
+  InstanceID: "fk",
+  StorageLocationID: "fk",
+  EventID: "fk",
+  ReplaceEventID: "fk",
+  Date: "optional",
+  Quantity: "number",
+  Active: "boolean",
+  Timestamp: "system"
+};
+
+
 /* ------------- RENDERERS -------------- */
 
 function renderView() {
@@ -908,12 +920,44 @@ function createEmptyFoodInstance() {
 }
 
 /* ---------- FORMS ----------- */
+function normalizeItem(item) {
+  const normalized = { ...item };
+
+  Object.keys(normalized).forEach(field => {
+    const type = FIELD_TYPES[field] || "text"; // ✅ default
+
+    const value = normalized[field];
+
+    if (value === "") {
+      switch (type) {
+        case "fk":
+        case "optional":
+          normalized[field] = null;
+          break;
+
+        case "text":
+          // leave as ""
+          break;
+
+        case "number":
+          normalized[field] = null;
+          break;
+
+        default:
+          break;
+      }
+    }
+  });
+
+  return normalized;
+}
 
 
 async function saveFoodInstance(mode = "close") {
   if (itemMode === "add") {
 
     Object.assign(currentItem, extractFields("food-item"));
+    currentItem = normalizeItem(currentItem);
 
     // Create item and capture returned object and update cache
     const created = await createFoodInstance(currentItem);
@@ -934,7 +978,7 @@ async function saveFoodInstance(mode = "close") {
         () => {
           Object.assign(currentItem, previous);
           renderView();
-        }, 100);
+        }, 500);
       setTimeout(
         () => {
           document.querySelector(".card")?.classList.add("new-item-flash");
@@ -942,7 +986,7 @@ async function saveFoodInstance(mode = "close") {
           setTimeout(
             () => {
               document.querySelector(".card")?.classList.remove("new-item-flash");
-            }, 500);
+            }, 1000);
         }, 0);
     } else {
       resetEditState();
@@ -953,6 +997,8 @@ async function saveFoodInstance(mode = "close") {
   }
 
   Object.assign(currentItem, extractFields("food-item"));
+  currentItem = normalizeItem(currentItem);
+
   const changes = getChangedFields(originalItem, currentItem);
 
   if (!Object.keys(changes).length) {
@@ -981,6 +1027,8 @@ async function saveFoodInstance(mode = "close") {
 
 async function saveStorage() {
   Object.assign(currentItem, extractFields("storage-item"));
+  currentItem = normalizeItem(currentItem);
+
   const changes = getChangedFields(originalItem, currentItem);
 
   if (!Object.keys(changes).length) {
