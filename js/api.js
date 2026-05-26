@@ -211,7 +211,7 @@ async function getNextID(type) {
 
   const prefix = ID_CONFIG[type];
 
-  return prefix + String(next).padStart(5, "0");
+  return prefix + "-" + String(next).padStart(5, "0");
 }
 
 
