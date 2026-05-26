@@ -1659,3 +1659,7 @@ function parseDate(value) {
   const d = new Date(value);
   return isNaN(d) ? 0 : d.getTime();
 }
+
+function getEventsForInstance(instanceID) {
+  return foodInstanceEventMap[instanceID] || [];
+}

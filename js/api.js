@@ -218,6 +218,21 @@ async function loadFoodInstanceEvents() {
       Timestamp: e.Timestamp ? Number(e.Timestamp) : 0,
       Active: (e.Active === false || e.Active === "FALSE") ? false : true
     }));
+  buildFoodInstanceEventMap();
+}
+
+function buildFoodInstanceEventMap() {
+  foodInstanceEventMap = {};
+
+  (window._foodInstanceEventCache || []).forEach(e => {
+    if (!e.InstanceID) return;
+
+    if (!foodInstanceEventMap[e.InstanceID]) {
+      foodInstanceEventMap[e.InstanceID] = [];
+    }
+
+    foodInstanceEventMap[e.InstanceID].push(e);
+  });
 }
 
 /* ----------- CREATORS --------------- */
@@ -290,6 +305,10 @@ async function createFoodInstanceEvent(event) {
 
   // update cache immediately
   window._foodInstanceEventCache.push(fullEvent);
+  if (!foodInstanceEventMap[fullEvent.InstanceID]) {
+    foodInstanceEventMap[fullEvent.InstanceID] = [];
+  }
+  foodInstanceEventMap[fullEvent.InstanceID].push(fullEvent);
 
   return fullEvent;
 }

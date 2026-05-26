@@ -21,6 +21,7 @@ let storageFilter = {
   text: ''
 };
 
+let foodInstanceEventMap = {};
 
 let interactionMode = "browse";  // "browse" | "select"
 
