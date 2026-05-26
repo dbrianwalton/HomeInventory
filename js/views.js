@@ -83,11 +83,7 @@ const VIEW_CONFIG = {
           },
 
           label: () => "Unassigned",
-
-          onClear: () => {
-            inventoryFilter.storageScope = "ALL";
-            applyFiltersAndRefresh();
-          }
+          onClear: clearStorageScope
         }
       ]
     }
