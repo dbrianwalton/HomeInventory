@@ -373,6 +373,10 @@ body.select-mode .inventory-table tbody tr {
   flex-wrap: wrap;   /* allows wrapping on small screens */
 }
 
+#filters-panel input {
+  width: auto;
+}
+
 /* Date inputs — shrink to fit content */
 #filters-panel .filter-date {
   width: 8.5rem;   /* tight but readable */

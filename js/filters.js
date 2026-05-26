@@ -281,4 +281,12 @@ function clearDateInputs() {
   if (to) to.value = '';
 }
 
+function clearStorageScope() {
+  inventoryFilter.storageScope = "ALL";
+  const storageSel = document.getElementById("storageScopeFilter");
+  if (storageSel) {
+    storageSel.value = "ALL";
+  }
 
+  applyFiltersAndRefresh();
+}
