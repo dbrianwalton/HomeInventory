@@ -525,6 +525,14 @@ function renderFoodInstanceList() {
         render: r => r.Label
       },
       {
+        label: "Qty",
+        render: r => {
+          if (r.Model !== "inventory") return "";
+          const state = computeInventoryState(r.InstanceID);
+          return formatInventoryQuantity(state);
+        }
+      },
+      {
         label: "Storage",
         render: r => window._storageMap?.[r.StorageLocationID]?.Label || '',
         field: "StorageLocationID"
