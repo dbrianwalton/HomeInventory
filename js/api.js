@@ -132,8 +132,42 @@ async function createFoodInstance(item) {
   return newItem;
 }
 
+async function appendFoodInstanceRow(item) {
+  const headers = window._foodInstanceHeaders;
+
+  const row = headers.map(h => item[h] ?? "");
+
+  await appendRowToSheet("FoodInstances", row);
+}
 
 /* ------------ SAVERS ---------------- */
+
+async function appendRowToSheet(sheetName, rowArray) {
+  const sheetId = getSheetId();
+
+  if (!sheetId) {
+    throw new Error("Sheet ID not configured");
+  }
+
+  const range = `${sheetName}!A1`; // append ignores exact row
+
+  const body = {
+    values: [rowArray]
+  };
+
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(range)}:append?valueInputOption=USER_ENTERED`;
+
+  const response = await gapi.client.request({
+    path: url,
+    method: "POST",
+    body,
+    params: {
+      valueInputOption: "USER_ENTERED"
+    }
+  });
+
+  return response.result;
+}
 
 async function performSave({
   saveFunction,
