@@ -763,6 +763,16 @@ function updateModeButton() {
   }
 }
 
+
+function resetNavigation(view, tab) {
+  navStack = [];
+  if (tab) {
+    activeTab = tab;
+  }
+  currentView = view;
+}
+
+
 /* -------- SELECTION ----------- */
 
 
@@ -1220,12 +1230,10 @@ function bindDetailEvents() {
       const id = el.dataset.storageLink;
 
       if (!id) {
+        resetNavigation("food-list", "inventory");
         inventoryFilter.storageScope = "UNASSIGNED";
-
-        currentView = "food-list";
-        renderView();   // ✅ uses your filter system
-
-        return;         // ✅ no pushView()
+        renderView();
+        return;
       }
 
       showStorageLocation(id);
