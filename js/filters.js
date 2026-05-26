@@ -41,28 +41,50 @@ function buildFilterExpansionPanel(config) {
   const from = config.getDateFrom?.();
   const to = config.getDateTo?.();
 
+  const fromVal = from
+    ? new Date(from).toISOString().slice(0, 10)
+    : "";
+
+  const toVal = to
+    ? new Date(to).toISOString().slice(0, 10)
+    : "";
+
+  const storageScope = inventoryFilter.storageScope || "ALL";
+
   return `
-    <div id="filters-panel" class="${filtersExpanded ? '' : 'hidden'}">
+    <div id="filters-panel" class="filter-expansion ${filtersExpanded ? '' : 'hidden'}">
 
-      <div class="filter-section">
+      <div class="filter-inline-group">
+
         <label>Date:</label>
-        <input type="date" id="dateFrom"
-          value="${from ? new Date(from).toISOString().slice(0,10) : ''}" />
-        <span>–</span>
-        <input type="date" id="dateTo"
-          value="${to ? new Date(to).toISOString().slice(0,10) : ''}" />
-      </div>
 
-      <div class="filter-section">
-        <label>Storage:</label>
-        <select id="storageScopeFilter">
+        <input
+          type="date"
+          id="dateFrom"
+          value="${fromVal}"
+          class="filter-date"
+        />
+
+        <span class="filter-dash">–</span>
+
+        <input
+          type="date"
+          id="dateTo"
+          value="${toVal}"
+          class="filter-date"
+        />
+
+        <label class="filter-label-spaced">Storage:</label>
+
+        <select id="storageScopeFilter" class="filter-select-compact">
           <option value="ALL">All</option>
-          <option value="UNASSIGNED"
-            ${inventoryFilter.storageScope === "UNASSIGNED" ? "selected" : ""}
-          >
+          <option value="UNASSIGNED" ${
+            storageScope === "UNASSIGNED" ? "selected" : ""
+          }>
             Unassigned
           </option>
         </select>
+
       </div>
 
     </div>
