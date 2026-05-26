@@ -14,7 +14,8 @@ let navStack = [];
 let inventoryFilter = {
   text: '',
   dateFrom: null,
-  dateTo: null
+  dateTo: null,
+  storageScope: "ALL"
 };
 let storageFilter = {
   text: ''

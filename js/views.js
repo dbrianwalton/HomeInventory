@@ -13,13 +13,18 @@ const VIEW_CONFIG = {
       setValue: (v) => { inventoryFilter.text = v; },
       onApply: renderFoodInstanceList,
 
-      showDate: true,
+      showFilterExtras: true,
+
       getDateFrom: () => inventoryFilter.dateFrom,
       getDateTo: () => inventoryFilter.dateTo,
       clearDate: () => {
         inventoryFilter.dateFrom = null;
         inventoryFilter.dateTo = null;
       },
+
+      getStorageScope: () => inventoryFilter.storageScope || "ALL",
+      setStorageScope: (v) => { inventoryFilter.storageScope = v; },
+      onStorageChange: renderFoodInstanceList,      
 
       chips: [
         {
@@ -67,6 +72,20 @@ const VIEW_CONFIG = {
             inventoryFilter.dateTo = null;
 
             clearDateInputs();
+            applyFiltersAndRefresh();
+          }
+        },
+        {
+          getValue: () => {
+            return inventoryFilter.storageScope === "UNASSIGNED"
+              ? "UNASSIGNED"
+              : null;
+          },
+
+          label: () => "Unassigned",
+
+          onClear: () => {
+            inventoryFilter.storageScope = "ALL";
             applyFiltersAndRefresh();
           }
         }
@@ -453,6 +472,11 @@ function renderFoodInstanceList() {
     });
   }
 
+  // ----- STORAGE SCOPE FILTER ----
+  if (inventoryFilter.storageScope === "UNASSIGNED") {
+    working = working.filter(i => !i.StorageLocationID);
+  } 
+
   const sorted = [...working].sort((a, b) => {
     let at = a[inventorySort.field];
     let bt = b[inventorySort.field];
@@ -513,6 +537,20 @@ function renderFoodInstanceList() {
     ]
   });
 }
+
+function showStorageUnassigned() {
+  pushView();
+
+  currentView = "food-list";
+  activeTab = "storage"; // if you use tabs
+
+  // ✅ apply filter
+  storageFilter = storageFilter || {};
+  storageFilter.unassigned = true;
+
+  renderStorageList();
+}
+
 
 function renderStorageList() {
   let working = window._storageLocationCache || [];
@@ -1177,12 +1215,24 @@ function bindDetailEvents() {
     });
   });
 
-  // storage link (view mode)
+  // storage link (view mode)  
   container.querySelectorAll("[data-storage-link]").forEach(el => {
     el.addEventListener("click", () => {
-      showStorageLocation(el.dataset.storageLink);
+      const id = el.dataset.storageLink;
+
+      if (!id) {
+        inventoryFilter.storageScope = "UNASSIGNED";
+
+        currentView = "food-list";
+        renderView();   // ✅ uses your filter system
+
+        return;         // ✅ no pushView()
+      }
+
+      showStorageLocation(id);
     });
   });
+
 
   // action buttons
   container.querySelectorAll("[data-action]").forEach(btn => {

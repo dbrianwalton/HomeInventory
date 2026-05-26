@@ -37,35 +37,39 @@ function updateFilterVisibility() {
 }
 
 
-function buildDatePanel(config) {
+function buildFilterExpansionPanel(config) {
   const from = config.getDateFrom?.();
   const to = config.getDateTo?.();
 
   return `
-    <div id="filters-panel"
-      class="filters-panel ${filtersExpanded ? '' : 'hidden'}">
+    <div id="filters-panel" class="${filtersExpanded ? '' : 'hidden'}">
 
-      <div class="filter-row">
-        <span class="filter-label">Date:</span>
-
-        <input
-          type="date"
-          id="dateFrom"
-          value="${from ? new Date(from).toISOString().slice(0,10) : ''}"
-        />
-
-        <span class="date-range-sep">–</span>
-
-        <input
-          type="date"
-          id="dateTo"
-          value="${to ? new Date(to).toISOString().slice(0,10) : ''}"
-        />
-
+      <div class="filter-section">
+        <label>Date:</label>
+        <input type="date" id="dateFrom"
+          value="${from ? new Date(from).toISOString().slice(0,10) : ''}" />
+        <span>–</span>
+        <input type="date" id="dateTo"
+          value="${to ? new Date(to).toISOString().slice(0,10) : ''}" />
       </div>
+
+      <div class="filter-section">
+        <label>Storage:</label>
+        <select id="storageScopeFilter">
+          <option value="ALL">All</option>
+          <option value="UNASSIGNED"
+            ${inventoryFilter.storageScope === "UNASSIGNED" ? "selected" : ""}
+          >
+            Unassigned
+          </option>
+        </select>
+      </div>
+
     </div>
   `;
 }
+
+
 
 
 function renderFilterUI() {
@@ -79,7 +83,7 @@ function renderFilterUI() {
     <div class="filters-header-row">
       <span class="filter-label">${config.filters?.label || "Filter"}</span>
 
-      ${config.showDate ? `
+      ${config.showFilterExtras ? `
         <button
           class="filters-toggle"
           aria-expanded="${filtersExpanded}"
@@ -98,7 +102,7 @@ function renderFilterUI() {
       <button id="filterClearBtn">X</button>
     </div>
 
-    ${config.showDate ? buildDatePanel(config) : ''}
+    ${config.showFilterExtras ? buildFilterExpansionPanel(config) : ''}
   `;
 }
 
@@ -184,6 +188,15 @@ function bindFilterEvents() {
 
   if (from) from.addEventListener('change', applyDateFilter);
   if (to) to.addEventListener('change', applyDateFilter);
+
+  const storageSel = document.getElementById("storageScopeFilter");
+
+  if (storageSel) {
+    storageSel.addEventListener("change", () => {
+      inventoryFilter.storageScope = storageSel.value;
+      applyFiltersAndRefresh();
+    });
+  }
 }
 
 
