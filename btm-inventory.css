@@ -180,6 +180,16 @@ select:focus {
   justify-content: space-between;
   margin-top: 1rem;
 }
+
+.new-item-flash {
+  animation: flash-bg 0.4s ease;
+}
+
+@keyframes flash-bg {
+  from { background-color: #e6f4ff; }
+  to { background-color: transparent; }
+}
+
 /* ---------- TOP FEATURE BUTTONS ---------- */
 
 .top-button {

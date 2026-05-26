@@ -101,9 +101,37 @@ async function loadFoodInstanceEvents() {
 
 /* ----------- CREATORS --------------- */
 
-function createFoodInstance() {
+function getNextInstanceID() {
+  const items = window._foodInstanceCache || [];
 
+  let max = 0;
+
+  items.forEach(i => {
+    const match = i.InstanceID?.match(/^FI(\d+)$/);
+    if (match) {
+      const num = parseInt(match[1], 10);
+      if (num > max) max = num;
+    }
+  });
+
+  return "FI-" + String(max + 1).padStart(5, "0");
 }
+
+
+async function createFoodInstance(item) {
+  const newID = getNextInstanceID();
+
+  const newItem = {
+    ...item,
+    InstanceID: newID
+  };
+
+  // ✅ Call your existing API write method
+  await appendFoodInstanceRow(newItem);
+
+  return newItem;
+}
+
 
 /* ------------ SAVERS ---------------- */
 

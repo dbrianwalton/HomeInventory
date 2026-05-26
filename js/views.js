@@ -550,9 +550,13 @@ function renderFoodInstanceDetail() {
 
   const item = currentItem;
   const isAdd = itemMode === "add";
+  const isEditable = itemMode === "edit" || itemMode === "add";
+
 
   let html = `
-    <div class="card ${itemMode === "edit" ? "edit-mode" : "view-mode"}">
+    <div class="card ${isEditable ? "edit-mode" : "view-mode"}">
+      <h2>New Food Instance</h2>
+      <div class="subtle-note">
       <h2>${isAdd ? "New Food Instance" : item.InstanceID}</h2>
 
       <div style="margin-top: 1rem;">
@@ -909,18 +913,13 @@ function createEmptyFoodInstance() {
 
 async function saveFoodInstance(mode = "close") {
   if (itemMode === "add") {
+
     Object.assign(currentItem, extractFields("food-item"));
 
-    await performSave({
-      saveFunction: createFoodInstance,   // your stub ✅
-      id: null,
-      changes: currentItem,
-      updateCache: () => {
-        // temporary — push into cache
-        window._foodInstanceCache.push(currentItem);
-      }
-    });
-
+    // Create item and capture returned object and update cache
+    const created = await createFoodInstance(currentItem);
+    currentItem = created;
+    window._foodInstanceCache.push(created);
 
     if (mode === "addAnother") {
       const previous = { ...currentItem };
@@ -928,11 +927,24 @@ async function saveFoodInstance(mode = "close") {
       currentItem = createEmptyFoodInstance();
 
       // prefill logic later (Step 6.5)
-      Object.assign(currentItem, previous);
-
       itemMode = "add";
       clearDirty();
       renderView();
+
+      setTimeout(
+        () => {
+          Object.assign(currentItem, previous);
+          renderView();
+        }, 100);
+      setTimeout(
+        () => {
+          document.querySelector(".card")?.classList.add("new-item-flash");
+
+          setTimeout(
+            () => {
+              document.querySelector(".card")?.classList.remove("new-item-flash");
+            }, 500);
+        }, 0);
     } else {
       resetEditState();
       showInventory();
