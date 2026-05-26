@@ -181,29 +181,31 @@ async function appendFoodInstanceRow(item) {
 async function appendRowToSheet(sheetName, rowArray) {
   const sheetId = getSheetId();
 
-  if (!sheetId) {
-    throw new Error("Sheet ID not configured");
-  }
-
-  const range = `${sheetName}!A1`; // append ignores exact row
-
-  const body = {
-    values: [rowArray]
-  };
+  const range = `${sheetName}!A:Z`;
 
   const url = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(range)}:append?valueInputOption=USER_ENTERED`;
 
-  const response = await gapi.client.request({
-    path: url,
+  const res = await fetch(url, {
     method: "POST",
-    body,
-    params: {
-      valueInputOption: "USER_ENTERED"
-    }
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      values: [rowArray]
+    })
   });
 
-  return response.result;
+  const data = await res.json();
+
+  if (!res.ok) {
+    console.error("Append failed:", data);
+    throw new Error(data.error?.message || "Failed to append row");
+  }
+
+  return data;
 }
+
 
 async function performSave({
   saveFunction,
