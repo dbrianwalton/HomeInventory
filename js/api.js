@@ -198,7 +198,7 @@ async function loadStorageLocations() {
 async function loadFoodInstanceEvents() {
   if (window._foodInstanceEventCache) return;
 
-  const rows = await sheetFetch("FoodInstanceEvents!A1:Z");
+  const rows = await sheetFetchRaw("FoodInstanceEvents!A1:Z");
 
   if (!rows.length) {
     window._foodInstanceEventHeaders = [];
