@@ -33,6 +33,7 @@ let inventorySort = {
   field: 'Date',
   direction: 'desc'
 };
+let showAllEvents = false;
 
 let filtersExpanded = false;
 

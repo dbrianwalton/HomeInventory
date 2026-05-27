@@ -636,12 +636,74 @@ function renderFoodInstanceDetail() {
       </div>
 
       ${renderDetailForm("food-item", item)}
+
+      <div id="event-table-container"></div>
     </div>
   `;
 
   document.getElementById("content").innerHTML = html;
+  renderEventTable(currentItem.InstanceID);
 
   bindDetailEvents();
+}
+
+function renderEventTable(instanceID) {
+  const events = getEventsForInstance(instanceID);
+
+  if (!events.length) {
+    document.getElementById('event-table-container').innerHTML = '<div class="card">No events</div>';
+    return;
+  }
+
+  // active only
+  let working = events.filter(e => e.Active !== false);
+
+  // sort newest first
+  working.sort((a, b) => b.Timestamp - a.Timestamp);
+
+  // apply default filter (only contributing events)
+  if (!showAllEvents) {
+    const anchorIndex = working.findIndex(e => e.EventType === 'INVENTORY');
+    if (anchorIndex !== -1) {
+      working = working.slice(0, anchorIndex + 1);
+    }
+  }
+
+  const html = `
+    <div class="card">
+      <div style="margin-bottom:0.5rem;">
+        <button id="toggleEventHistory">${showAllEvents ? 'Show Current Only' : 'Show Full History'}</button>
+      </div>
+      <table class="inventory-table">
+        <thead>
+          <tr>
+            <th>Timestamp</th>
+            <th>Type</th>
+            <th>Qty</th>
+            <th>Notes</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${working.map(e => `
+            <tr>
+              <td>${new Date(e.Timestamp).toLocaleString() || ''}</td>
+              <td>${e.EventType}</td>
+              <td>${e.Quantity}</td>
+              <td>${e.Notes || ''}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+
+  document.getElementById('event-table-container').innerHTML = html;
+
+  // bind toggle
+  document.getElementById('toggleEventHistory').addEventListener('click', () => {
+    showAllEvents = !showAllEvents;
+    renderEventTable(instanceID);
+  });
 }
 
 
