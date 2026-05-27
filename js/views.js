@@ -612,9 +612,25 @@ function renderFoodInstanceDetail() {
 
   let html = `
     <div class="card ${isEditable ? "edit-mode" : "view-mode"}">
-      <h2>${isAdd ? "New Food Instance" : item.InstanceID}</h2>
+      <h2>
+        ${isAdd ? "New Food Instance" : item.InstanceID}
+        ${
+          item.Model === "inventory"
+            ? `<span class="inventory-qty">(${formatInventoryQuantity(computeInventoryState(item.InstanceID))})</span>`
+            : ""
+        }
+      </h2>
       <div id="new-item-note" class="subtle-note"></div>
-
+      ${
+        item.Model === "inventory"
+          ? `
+            <div class="inventory-actions">
+              add＋</button>
+              inventory＝</button>
+            </div>
+          `
+          : ""
+      }
       <div style="margin-top: 1rem;">
         ${renderDetailActions()}
       </div>
@@ -1285,6 +1301,13 @@ function bindDetailEvents() {
       }
     });
   });
+
+  container.querySelectorAll("[data-inv-action]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const type = btn.dataset.invAction === "add" ? "ADD" : "INVENTORY";
+      openEventModal(type);
+    });
+  });
 }
 
 /* ------------- QR CODE -------------- */
@@ -1652,6 +1675,47 @@ async function drawLabel(doc, item, x, y, config) {
   textY = y + padding;
 
   drawFields(doc, item, config, textX, textY);
+}
+
+/* ------- FOOD EVENTS -------- */
+
+let pendingEventType = null;
+
+function openEventModal(type) {
+  pendingEventType = type;
+
+  document.getElementById("eventModalTitle").textContent =
+    type === "ADD" ? "Add Inventory" : "Inventory Count";
+
+  document.getElementById("eventQuantity").value = "";
+  document.getElementById("eventNotes").value = "";
+
+  document.getElementById("eventModal").classList.remove("hidden");
+}
+
+function closeEventModal() {
+  document.getElementById("eventModal").classList.add("hidden");
+}
+
+async function confirmEvent() {
+  const qty = Number(document.getElementById("eventQuantity").value);
+  const notes = document.getElementById("eventNotes").value;
+
+  if (!qty && qty !== 0) {
+    alert("Quantity is required");
+    return;
+  }
+
+  await createFoodInstanceEvent({
+    InstanceID: currentItem.InstanceID,
+    EventType: pendingEventType,
+    Quantity: qty,
+    Notes: notes
+  });
+
+  closeEventModal();
+
+  renderFoodInstanceDetail();
 }
 
 /* ------- UTILITIES --------- */

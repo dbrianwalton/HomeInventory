@@ -104,6 +104,23 @@
     </div>
   </div>
 
+  <div id="eventModal" class="settings-panel hidden">
+    <div class="settings-content">
+      <h3 id="eventModalTitle">New Event</h3>
+
+      <label>Quantity</label>
+      <input id="eventQuantity" type="number" />
+
+      <label>Notes</label>
+      <input id="eventNotes" />
+
+      <div class="settings-actions">
+        <button onclick="confirmEvent()">Save</button>
+        <button onclick="closeEventModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+  
 <script src="js/state.js"></script>
 <script src="js/api.js"></script>
 <script src="js/filters.js"></script>
