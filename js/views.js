@@ -1809,6 +1809,11 @@ async function confirmEvent() {
     return;
   }
 
+  if (pendingEventType === "REMOVE" && qty <= 0) {
+    alert("Remove quantity must be greater than 0");
+    return;
+  }
+
   if (pendingEventType === "INVENTORY" && qty < 0) {
     alert("Inventory count cannot be negative");
     return;
@@ -1897,9 +1902,11 @@ function computeInventoryState(instanceID) {
 
   chronological.forEach(e => {
     if (e.EventType === "INVENTORY") {
-      total = e.Quantity;
+      total = e.Quantity;    
     } else if (e.EventType === "ADD") {
       total += e.Quantity;
+    } else if (e.EventType === "REMOVE") {
+      total -= e.Quantity;
     }
   });
 
@@ -1913,6 +1920,10 @@ function computeInventoryState(instanceID) {
 function formatInventoryQuantity(state) {
   if (!state.hasEvents || state.quantity === null) {
     return "-";
+  }
+
+  if (state.quantity < 0) {
+    return `<span class="inventory-count-negative">0 ⚠</span>`;
   }
 
   if (!state.isAnchored) {
