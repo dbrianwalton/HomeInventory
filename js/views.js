@@ -291,6 +291,37 @@ function showStorageLocation(id) {
 }
 
 
+function showInstancesForProduct(product) {
+  const instances = getInstancesForProduct(product.ProductID);
+
+  let html = `
+    <div class="card">
+      <h3>${product.Label}</h3>
+      <ul>
+  `;
+
+  instances.forEach(i => {
+    html += `
+      <li>
+        <button onclick="openFoodInstance('${i.InstanceID}')">
+          ${i.Label}
+        </button>
+      </li>
+    `;
+  });
+
+  html += `
+      </ul>
+      <button onclick="createInstanceFromProduct('${product.ProductID}')">
+        + Create New Instance
+      </button>
+    </div>
+  `;
+
+  document.getElementById("content").innerHTML = html;
+}
+
+
 function pushView() {
   navStack.push({
     currentView,
@@ -1079,9 +1110,31 @@ function createEmptyFoodInstance() {
   };
 }
 
+function createInstanceFromProduct(productID) {
+  const product = productMap[productID];
+
+  currentItem = createEmptyFoodInstance();
+
+  currentItem.ProductID = productID;
+
+  // Only fill label if blank
+  if (!currentItem.Label) {
+    currentItem.Label = product.Label;
+  }
+
+  currentView = "food-item";
+  itemMode = "add";
+
+  renderView();
+}
+
+
+function getAllFoodInstances() {
+  return window._foodInstanceCache || [];
+}
 
 function getInstancesForProduct(productID) {
-  return (window._foodInstanceCache || []).filter(
+  return getAllFoodInstances().filter(
     i => i.ProductID === productID
   );
 }
@@ -1443,6 +1496,21 @@ function toggleQRCode(id) {
 }
 
 /* ---------- SCANNER ---------- */
+
+function handleScanInput() {
+  const raw = document.getElementById("barcodeInput").value;
+
+  if (!raw) return;
+
+  const product = findProductByBarcode(raw);
+
+  if (!product) {
+    alert("No product found for this barcode");
+    return;
+  }
+
+  showInstancesForProduct(product);
+}
 
 let qrScanner = null;
 
