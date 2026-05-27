@@ -660,10 +660,10 @@ function renderEventTable(instanceID) {
 
   // sort newest first
   working.sort((a, b) => b.Timestamp - a.Timestamp);
+  const anchorIndex = working.findIndex(e => e.EventType === 'INVENTORY');
 
   // apply default filter (only contributing events)
   if (!showAllEvents) {
-    const anchorIndex = working.findIndex(e => e.EventType === 'INVENTORY');
     if (anchorIndex !== -1) {
       working = working.slice(0, anchorIndex + 1);
     }
@@ -684,14 +684,19 @@ function renderEventTable(instanceID) {
           </tr>
         </thead>
         <tbody>
-          ${working.map(e => `
-            <tr>
-              <td>${new Date(e.Timestamp).toLocaleString() || ''}</td>
+        ${working.map((e, idx) => {
+          const isHistorical =
+            showAllEvents && anchorIndex !== -1 && idx > anchorIndex;
+
+          return `
+            <tr class="${isHistorical ? 'event-historical' : 'event-current'}">
+                        <td>${new Date(e.Timestamp).toLocaleString() || ''}</td>
               <td>${e.EventType}</td>
               <td>${e.Quantity}</td>
               <td>${e.Notes || ''}</td>
             </tr>
-          `).join('')}
+              `;
+            }).join('')}
         </tbody>
       </table>
     </div>

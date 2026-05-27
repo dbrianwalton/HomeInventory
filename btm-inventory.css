@@ -322,6 +322,14 @@ body.select-mode .inventory-table tbody tr {
   cursor: pointer;
 }
 
+.event-historical {
+  background-color: #f7f7f7;
+  color: #666;
+}
+
+.event-current {
+  /* default styling, optional */
+}
 
 /* -------- FILTER ---------- */
 
