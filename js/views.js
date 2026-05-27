@@ -623,8 +623,7 @@ function renderFoodInstanceDetail() {
         <button data-inv-action="add" ${disabledAttr}>+</button>
         <button data-inv-action="inventory" ${disabledAttr}>=</button>
       </div>
-    `
-    : "";
+    `;
       
   let html = `
     <div class="card ${isEditable ? "edit-mode" : "view-mode"}">
