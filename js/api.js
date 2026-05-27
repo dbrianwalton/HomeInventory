@@ -158,7 +158,9 @@ async function loadAllData() {
   await Promise.all([
     loadInventory(),
     loadStorageLocations(),
-    loadFoodInstanceEvents()
+    loadFoodInstanceEvents(),
+    loadProducts(),
+    loadFoodBarcodes()
   ]);
 }
 
@@ -239,6 +241,88 @@ function buildFoodInstanceEventMap() {
     foodInstanceEventMap[e.InstanceID].push(e);
   });
 }
+
+async function loadProducts() {
+  if (window._productCache) return;
+
+  const rows = await sheetFetchRaw("Products!A1:Z");
+
+  if (!rows.length) {
+    window._productHeaders = [];
+    window._productCache = [];
+    return;
+  }
+
+  const headers = rows[0];
+  const dataRows = rows.slice(1);
+
+  window._productHeaders = headers;
+
+  window._productCache = rowsToObjects([headers, ...dataRows]);
+
+  buildProductMap();
+}
+
+function buildProductMap() {
+  productMap = {};
+
+  (window._productCache || []).forEach(p => {
+    productMap[p.ProductID] = p;
+  });
+}
+
+
+async function loadFoodBarcodes() {
+  if (window._barcodeCache) return;
+
+  const rows = await sheetFetchRaw("FoodBarcodes!A1:Z");
+
+  if (!rows.length) {
+    window._barcodeHeaders = [];
+    window._barcodeCache = [];
+    return;
+  }
+
+  const headers = rows[0];
+  const dataRows = rows.slice(1);
+
+  window._barcodeHeaders = headers;
+
+  window._barcodeCache = rowsToObjects([headers, ...dataRows]);
+
+  buildBarcodeMaps();
+}
+
+
+function buildBarcodeMaps() {
+  barcodeMap = {};
+  barcodeToProductMap = {};
+
+  (window._barcodeCache || []).forEach(b => {
+    barcodeMap[b.BarcodeID] = b;
+
+    if (b.Code) {
+      const normalized = normalizeBarcode(b.Code);
+      barcodeToProductMap[normalized] = b.ProductID;
+    }
+  });
+}
+
+
+function normalizeBarcode(code) {
+  return String(code).replace(/[^0-9A-Za-z]/g, "");
+}
+
+
+function findProductByBarcode(code) {
+  const normalized = normalizeBarcode(code);
+  const productID = barcodeToProductMap[normalized];
+
+  if (!productID) return null;
+
+  return productMap[productID] || null;
+}
+
 
 /* ----------- CREATORS --------------- */
 
@@ -324,6 +408,82 @@ async function appendFoodInstanceEventRow(event) {
   const row = headers.map(h => event[h] ?? "");
 
   await appendRowToSheet("FoodInstanceEvents", row);
+}
+
+
+async function createProduct(product) {
+  const headers = window._productHeaders;
+
+  if (!headers?.length) {
+    throw new Error("Product headers not loaded");
+  }
+
+  const newID = await getNextID("Product");
+
+  const base = {};
+  headers.forEach(h => {
+    base[h] = product[h] ?? "";
+  });
+
+  const fullProduct = {
+    ...base,
+    ProductID: newID
+  };
+
+  await appendProductRow(fullProduct);
+
+  window._productCache.push(fullProduct);
+  productMap[newID] = fullProduct;
+
+  return fullProduct;
+}
+
+
+async function appendProductRow(product) {
+  const headers = window._productHeaders;
+
+  const row = headers.map(h => product[h] ?? "");
+
+  await appendRowToSheet("Products", row);
+}
+
+
+async function createFoodBarcode(barcode) {
+  const headers = window._barcodeHeaders;
+
+  if (!headers?.length) {
+    throw new Error("Barcode headers not loaded");
+  }
+
+  const newID = await getNextID("FoodBarcode");
+
+  const base = {};
+  headers.forEach(h => {
+    base[h] = barcode[h] ?? "";
+  });
+
+  const fullBarcode = {
+    ...base,
+    BarcodeID: newID
+  };
+
+  await appendFoodBarcodeRow(fullBarcode);
+
+  window._barcodeCache.push(fullBarcode);
+
+  const normalized = normalizeBarcode(fullBarcode.Code);
+  barcodeToProductMap[normalized] = fullBarcode.ProductID;
+
+  return fullBarcode;
+}
+
+
+async function appendFoodBarcodeRow(barcode) {
+  const headers = window._barcodeHeaders;
+
+  const row = headers.map(h => barcode[h] ?? "");
+
+  await appendRowToSheet("FoodBarcodes", row);
 }
 
 /* ------------ SAVERS ---------------- */

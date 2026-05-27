@@ -44,6 +44,9 @@ let labelDrawBoundary = false;
 
 let touchTimer;
 
+let productMap = {};
+let barcodeMap = {};
+let barcodeToProductMap = {};
 
 /* ---------------------- */
 
