@@ -1081,7 +1081,7 @@ function createEmptyFoodInstance() {
 
 
 function getInstancesForProduct(productID) {
-  return (window._inventoryCache || []).filter(
+  return (window._foodInstanceCache || []).filter(
     i => i.ProductID === productID
   );
 }
