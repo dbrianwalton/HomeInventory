@@ -214,8 +214,13 @@ async function loadFoodInstanceEvents() {
     rowsToObjects([headers, ...dataRows]).
     map(e => ({
       ...e,
-      Quantity: e.Quantity ? Number(e.Quantity) : 0,
-      Timestamp: e.Timestamp ? Number(e.Timestamp) : 0,
+      Quantity: e.Quantity
+        ? Number(String(e.Quantity).replace(/,/g, ""))
+        : 0,
+
+      Timestamp: e.Timestamp
+        ? Number(String(e.Timestamp).replace(/,/g, ""))
+        : 0,
       Active: (e.Active === false || e.Active === "FALSE") ? false : true
     }));
   buildFoodInstanceEventMap();

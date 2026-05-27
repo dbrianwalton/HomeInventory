@@ -167,7 +167,11 @@ const ENTITY_FIELDS = {
   "food-item": [
     { key: "Model", label: "Model",
       type: "select",
-      options: ["unit", "inventory"]
+      options: ["unit", "inventory"],
+      isEditable: (item) => {
+        const events = getEventsForInstance(item.InstanceID);
+        return !events || events.length === 0;
+      }
     },
     {
       key: "Category", label: "Category",
@@ -609,7 +613,20 @@ function renderFoodInstanceDetail() {
   const isAdd = itemMode === "add";
   const isEditable = itemMode === "edit" || itemMode === "add";
 
+  showAllEvents = false;
 
+  const disabledAttr = itemMode === "add" ? "disabled" : "";
+
+
+  const inventoryActions = item.Model === "inventory"
+    ? `
+      <div class="inventory-actions">
+        <button data-inv-action="add" ${disabledAttr}>+</button>
+        <button data-inv-action="inventory" ${disabledAttr}>=</button>
+      </div>
+    `
+    : "";
+      
   let html = `
     <div class="card ${isEditable ? "edit-mode" : "view-mode"}">
       <h2>
@@ -621,16 +638,7 @@ function renderFoodInstanceDetail() {
         }
       </h2>
       <div id="new-item-note" class="subtle-note"></div>
-      ${
-        item.Model === "inventory"
-          ? `
-            <div class="inventory-actions">
-              <button data-inv-action="add">＋</button>
-              <button data-inv-action="inventory">＝</button>
-            </div>
-          `
-          : ""
-      }
+      ${inventoryActions}
       <div style="margin-top: 1rem;">
         ${renderDetailActions()}
       </div>
@@ -1193,6 +1201,11 @@ function renderField(field, item, readOnly) {
   const value = item[field.key] || '';
   const isEmpty = !value;
 
+  const editable =
+    typeof field.isEditable === "function"
+      ? field.isEditable(item)
+      : true;
+
   // Storage special case
   if (field.type === "storage-select") {
     const storage = window._storageMap?.[value];
@@ -1200,7 +1213,7 @@ function renderField(field, item, readOnly) {
       ? `${storage.Label} (${storage.PhysicalLocation})`
       : "Unassigned";
 
-    if (readOnly) {
+    if (readOnly || !editable) {
       return `<button data-storage-link="${value}">
         ${storageText}
       </button>`;
@@ -1224,7 +1237,7 @@ function renderField(field, item, readOnly) {
 
   // Select (dropdown list)
   if (field.type === "select") {
-    if (readOnly) {
+    if (readOnly || !editable) {
       return `<div>${value}</div>`;
     }
 
@@ -1248,7 +1261,7 @@ function renderField(field, item, readOnly) {
       data-field="${field.key}"
       value="${value}"
       class="${isEmpty ? 'empty' : ''}"
-      ${readOnly ? "readonly" : ""}
+      ${readOnly || !editable ? "readonly" : ""}
     />
   `;
 }
@@ -1765,11 +1778,22 @@ function closeEventModal() {
 }
 
 async function confirmEvent() {
-  const qty = Number(document.getElementById("eventQuantity").value);
+  const raw = document.getElementById("eventQuantity").value;
+  const qty = Number(raw);
   const notes = document.getElementById("eventNotes").value;
 
-  if (!qty && qty !== 0) {
-    alert("Quantity is required");
+  if (isNaN(qty)) {
+    alert("Quantity must be a number");
+    return;
+  }
+
+  if (pendingEventType === "ADD" && qty <= 0) {
+    alert("Add quantity must be greater than 0");
+    return;
+  }
+
+  if (pendingEventType === "INVENTORY" && qty < 0) {
+    alert("Inventory count cannot be negative");
     return;
   }
 
