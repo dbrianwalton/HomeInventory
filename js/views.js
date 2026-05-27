@@ -620,7 +620,7 @@ function renderFoodInstanceDetail() {
 
   const inventoryActions = item.Model === "inventory"
     ? `
-      <div class="inventory-actions">
+      <div class="inventory-actions" ${item.Model !== "inventory" ? "hidden" : ""}>
         <button data-inv-action="add" ${disabledAttr}>+</button>
         <button data-inv-action="inventory" ${disabledAttr}>=</button>
       </div>
@@ -654,6 +654,19 @@ function renderFoodInstanceDetail() {
 
   bindDetailEvents();
 }
+
+
+function updateInventoryUI() {
+  const panel = document.querySelector(".inventory-actions");
+  if (!panel) return;
+
+  if (currentItem.Model === "inventory") {
+    panel.classList.remove("hidden");
+  } else {
+    panel.classList.add("hidden");
+  }
+}
+
 
 function renderEventTable(instanceID) {
   const events = getEventsForInstance(instanceID);
@@ -1325,6 +1338,10 @@ function bindDetailEvents() {
       const key = el.dataset.field;
       currentItem[key] = el.value;
       markDirty();
+
+      if (key === "Model") {
+        updateInventoryUI();
+      }
     });
   });
 
