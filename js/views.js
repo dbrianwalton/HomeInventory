@@ -1079,6 +1079,14 @@ function createEmptyFoodInstance() {
   };
 }
 
+
+function getInstancesForProduct(productID) {
+  return (window._inventoryCache || []).filter(
+    i => i.ProductID === productID
+  );
+}
+
+
 /* ---------- FORMS ----------- */
 function normalizeItem(item) {
   const normalized = { ...item };
