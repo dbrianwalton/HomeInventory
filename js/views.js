@@ -624,6 +624,7 @@ function renderFoodInstanceDetail() {
       <div class="inventory-actions ${item.Model !== "inventory" ? "hidden" : ""}">
         <button data-inv-action="add" ${disabledAttr}>+</button>
         <button data-inv-action="inventory" ${disabledAttr}>=</button>
+        <button data-inv-action="inventory" ${disabledAttr}>=</button>
       </div>
     `;
       
@@ -1401,7 +1402,14 @@ function bindDetailEvents() {
 
   container.querySelectorAll("[data-inv-action]").forEach(btn => {
     btn.addEventListener("click", () => {
-      const type = btn.dataset.invAction === "add" ? "ADD" : "INVENTORY";
+      let type;
+
+      if (btn.dataset.invAction === "add") type = "ADD";
+      else if (btn.dataset.invAction === "remove") type = "REMOVE";
+      else if (btn.dataset.invAction === "inventory") type = "INVENTORY";
+
+      if (!type) return;
+
       openEventModal(type);
     });
   });
@@ -1781,8 +1789,12 @@ let pendingEventType = null;
 function openEventModal(type) {
   pendingEventType = type;
 
-  document.getElementById("eventModalTitle").textContent =
-    type === "ADD" ? "Add Inventory" : "Inventory Count";
+  let title = "New Event";
+  if (type === "ADD") title = "Add Inventory";
+  else if (type === "REMOVE") title = "Remove Inventory";
+  else if (type === "INVENTORY") title = "Inventory Count";
+
+  document.getElementById("eventModalTitle").textContent = title;
 
   document.getElementById("eventQuantity").value = "";
   document.getElementById("eventNotes").value = "";
