@@ -625,8 +625,8 @@ function renderFoodInstanceDetail() {
         item.Model === "inventory"
           ? `
             <div class="inventory-actions">
-              add＋</button>
-              inventory＝</button>
+              <button data-inv-action="add">＋</button>
+              <button data-inv-action="inventory">＝</button>
             </div>
           `
           : ""
