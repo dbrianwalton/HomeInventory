@@ -615,8 +615,10 @@ function renderFoodInstanceDetail() {
 
   showAllEvents = false;
 
-  const disabledAttr = itemMode === "add" ? "disabled" : "";
+  const canUseInventory =
+    itemMode === "view" && currentItem.Model === "inventory";
 
+  const disabledAttr = canUseInventory ? "" : "disabled";
 
   const inventoryActions = `
       <div class="inventory-actions ${item.Model !== "inventory" ? "hidden" : ""}">
