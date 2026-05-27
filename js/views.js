@@ -623,7 +623,7 @@ function renderFoodInstanceDetail() {
   const inventoryActions = `
       <div class="inventory-actions ${item.Model !== "inventory" ? "hidden" : ""}">
         <button data-inv-action="add" ${disabledAttr}>+</button>
-        <button data-inv-action="inventory" ${disabledAttr}>=</button>
+        <button data-inv-action="remove" ${disabledAttr}>-</button>
         <button data-inv-action="inventory" ${disabledAttr}>=</button>
       </div>
     `;
