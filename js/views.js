@@ -123,6 +123,10 @@ const VIEW_CONFIG = {
   "storage-item": {
     type: "detail",
     render: renderStorageDetail
+  },
+
+  "entity-select": {
+    render: renderEntitySelector
   }
 };
 
@@ -179,6 +183,24 @@ const ENTITY_FIELDS = {
       options: ["freeze-dried","frozen","canned","home-canned","packaged","bulk"]
     },
     { key: "Label", label: "Label", type: "text" },
+    {
+      key: "ProductID",
+      label: "Product",
+      type: "entity-select",
+
+      getOptions: () => window._productCache || [],
+
+      getDisplay: (item, value) => {
+        const p = productMap[value];
+        return p ? p.Label : "(none)";
+      },
+
+      getId: (entityItem) => entityItem.ProductID,
+
+      getLabel: (entityItem) => {
+        return entityItem.Label + (entityItem.Size ? ` (${entityItem.Size})` : "");
+      }
+    },
     { key: "Keywords", label: "Keywords", type: "text" },
     { key: "Notes", label: "Notes", type: "text" },
     { key: "Size", label: "Size", type: "text" },
@@ -303,7 +325,7 @@ function showInstancesForProduct(product) {
   instances.forEach(i => {
     html += `
       <li>
-        <button onclick="openFoodInstance('${i.InstanceID}')">
+        <button onclick="showFoodInstance('${i.InstanceID}')">
           ${i.Label}
         </button>
       </li>
@@ -806,6 +828,54 @@ function renderStorageDetail() {
     ]
   });
 }
+
+
+function renderEntitySelector() {
+  const field = currentItem._selectConfig;
+  const fieldKey = currentItem._selectField;
+
+  const list = field.getOptions ? field.getOptions() : [];
+
+  const container = document.getElementById("content");
+
+  let html = `
+    <div class="card">
+      <h2>Select ${field.label}</h2>
+      <ul>
+  `;
+
+  list.forEach(item => {
+    const id = field.getId(item);
+    const label = field.getLabel(item);
+
+    html += `
+      <li>
+        <button data-entity-id="${id}">
+          ${label}
+        </button>
+      </li>
+    `;
+  });
+
+  html += `
+      </ul>
+    </div>
+  `;
+
+  container.innerHTML = html;
+
+  container.querySelectorAll("[data-entity-id]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const selectedID = btn.dataset.entityId;
+
+      currentItem[fieldKey] = selectedID;
+
+      goBack();
+      renderView();
+    });
+  });
+}
+
 
 /* ---------- NAVIGATION + UI ------------- */
 
@@ -1329,6 +1399,26 @@ function renderField(field, item, readOnly) {
     `;
   }
 
+  if (field.type === "entity-select") {
+    const value = item[field.key];
+
+    const display =
+      field.getDisplay
+        ? field.getDisplay(item, value)
+        : (value || "(none)");
+
+    if (readOnly) {
+      return `<div>${display}</div>`;
+    }
+
+    return `
+      <div>
+        <span>${display}</span>
+        <button data-select-field="${field.key}">Change</button>
+      </div>
+    `;
+  }
+
   // Default text
   return `
     <input
@@ -1355,6 +1445,20 @@ function extractFields(entityType) {
   return result;
 }
 
+
+function openEntitySelector(fieldKey) {
+  const field = ENTITY_FIELDS[currentView].find(f => f.key === fieldKey);
+
+  if (!field) return;
+
+  pushView();
+
+  currentItem._selectField = fieldKey;
+  currentItem._selectConfig = field;
+
+  currentView = "entity-select";
+  renderView();
+}
 
 
 function renderDetailForm(entityType, item) {
@@ -1423,6 +1527,14 @@ function bindDetailEvents() {
     });
   });
 
+  // select field
+  container.querySelectorAll("[data-select-field]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const fieldKey = btn.dataset.selectField;
+
+      openEntitySelector(fieldKey);
+    });
+  });
 
   // action buttons
   container.querySelectorAll("[data-action]").forEach(btn => {
