@@ -864,16 +864,33 @@ function renderEntitySelector() {
 
   container.innerHTML = html;
 
+  
   container.querySelectorAll("[data-entity-id]").forEach(btn => {
     btn.addEventListener("click", () => {
       const selectedID = btn.dataset.entityId;
 
-      currentItem[fieldKey] = selectedID;
-
-      goBack();
-      renderView();
+      applyEntitySelection(fieldKey, selectedID);
     });
   });
+
+}
+
+
+function applyEntitySelection(fieldKey, selectedID) {
+  updatePreviousViewItem(item => {
+    item[fieldKey] = selectedID;
+  });
+
+  goBack();
+  renderView();
+}
+
+
+function updatePreviousViewItem(updater) {
+  const prev = navStack[navStack.length - 1];
+  if (prev?.item) {
+    updater(prev.item);
+  }
 }
 
 
