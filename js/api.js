@@ -296,14 +296,14 @@ async function loadFoodBarcodes() {
 
 function buildBarcodeMaps() {
   barcodeMap = {};
-  barcodeToProductMap = {};
+  barcodeProductMap = {};
 
   (window._barcodeCache || []).forEach(b => {
     barcodeMap[b.BarcodeID] = b;
 
     if (b.Code) {
       const normalized = normalizeBarcode(b.Code);
-      barcodeToProductMap[normalized] = b.ProductID;
+      barcodeProductMap[normalized] = b.ProductID;
     }
   });
 }
@@ -316,7 +316,7 @@ function normalizeBarcode(code) {
 
 function findProductByBarcode(code) {
   const normalized = normalizeBarcode(code);
-  const productID = barcodeToProductMap[normalized];
+  const productID = barcodeProductMap[normalized];
 
   if (!productID) return null;
 
@@ -472,7 +472,7 @@ async function createFoodBarcode(barcode) {
   window._barcodeCache.push(fullBarcode);
 
   const normalized = normalizeBarcode(fullBarcode.Code);
-  barcodeToProductMap[normalized] = fullBarcode.ProductID;
+  barcodeProductMap[normalized] = fullBarcode.ProductID;
 
   return fullBarcode;
 }
