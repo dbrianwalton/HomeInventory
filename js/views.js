@@ -197,6 +197,10 @@ const ENTITY_FIELDS = {
 
       getId: (entityItem) => entityItem.ProductID,
 
+      getSearchText: e => {
+        return `${e.Label} ${e.Size || ""}`.toLowerCase();
+      }
+
       getLabel: (entityItem) => {
         return entityItem.Label + (entityItem.Size ? ` (${entityItem.Size})` : "");
       }
@@ -841,14 +845,34 @@ function renderEntitySelector() {
   let html = `
     <div class="card">
       <div style="margin-bottom: 1rem;">
-        <button id="selectorBack">Back</button>
+        <button id="selectorBack">Cancel</button>
       </div>
 
       <h2>Select ${field.label}</h2>
+
+      <input 
+        id="selectorSearch" 
+        placeholder="Search..." 
+        value="${selectorSearchTerm}"
+        style="width: 100%; margin-bottom: 1rem;"
+      />
+
       <ul>
   `;
 
-  list.forEach(item => {
+  const rawList = field.getOptions ? field.getOptions() : [];
+
+  const filteredList = rawList.filter(item => {
+    if (!selectorSearchTerm) return true;
+
+    const text = field.getSearchText
+      ? field.getSearchText(item)
+      : field.getLabel(item).toLowerCase();
+
+    return text.includes(selectorSearchTerm.toLowerCase());
+  });
+
+  filteredList.forEach(item => {
     const id = field.getId(item);
     const label = field.getLabel(item);
 
@@ -868,11 +892,16 @@ function renderEntitySelector() {
 
   container.innerHTML = html;
 
+  document.getElementById("selectorSearch").addEventListener("input", (e) => {
+    selectorSearchTerm = e.target.value;
+    renderEntitySelector();
+  });
+  
   document.getElementById("selectorBack").addEventListener("click", () => {
     goBack();
     renderView();
   });
-  
+
   container.querySelectorAll("[data-entity-id]").forEach(btn => {
     btn.addEventListener("click", () => {
       const selectedID = btn.dataset.entityId;
@@ -1473,13 +1502,14 @@ function extractFields(entityType) {
 
 function openEntitySelector(fieldKey) {
   const field = ENTITY_FIELDS[currentView].find(f => f.key === fieldKey);
-
   if (!field) return;
 
   pushView();
 
   currentItem._selectField = fieldKey;
   currentItem._selectConfig = field;
+
+  selectorSearchTerm = ""; // ✅ reset
 
   currentView = "entity-select";
   renderView();
