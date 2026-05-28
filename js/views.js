@@ -189,20 +189,14 @@ const ENTITY_FIELDS = {
       type: "entity-select",
 
       getOptions: () => window._productCache || [],
-
       getDisplay: (item, value) => {
         const p = productMap[value];
-        return p ? p.Label : "(none)";
+        return formatProductLabel(p);
       },
-
+      getLabel: (entityItem) => formatProductLabel(entityItem),
       getId: (entityItem) => entityItem.ProductID,
-
       getSearchText: e => {
         return `${e.Label} ${e.Size || ""}`.toLowerCase();
-      },
-
-      getLabel: (entityItem) => {
-        return entityItem.Label + (entityItem.Size ? ` (${entityItem.Size})` : "");
       }
     },
     { key: "Keywords", label: "Keywords", type: "text" },
@@ -901,7 +895,7 @@ function renderEntitySelectorList() {
         render: (row) => field.getLabel(row)
       }
     ],
-    getRowId: r => r.ProductID,
+    getRowId: field.getId,
     onRowClick: (event, id) => {
       //const id = field.getId(row);
 
@@ -1252,6 +1246,12 @@ function createInstanceFromProduct(productID) {
   itemMode = "add";
 
   renderView();
+}
+
+
+function formatProductLabel(p) {
+  if (!p) return "(none)";
+  return p.Label + (p.Size ? ` (${p.Size})` : "");
 }
 
 
