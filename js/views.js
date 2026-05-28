@@ -823,7 +823,7 @@ function renderStorageDetail() {
     rows: related,
     getRowId: r => r.InstanceID,
     enableSelection: false,
-    onRowClick: (e, id) => showFoodInstance(id),
+    onRowClick: (event, id) => showFoodInstance(id),
     columns: [
       { label: "Date", render: r => r.Date || '' },
       { label: "ID", render: r => r.InstanceID },
@@ -902,8 +902,8 @@ function renderEntitySelectorList() {
       }
     ],
     getRowId: r => r.ProductID,
-    onRowClick: (row) => {
-      const id = field.getId(row);
+    onRowClick: (event, id) => {
+      //const id = field.getId(row);
 
       updatePreviousViewItem(item => {
         item[fieldKey] = id;
