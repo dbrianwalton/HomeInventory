@@ -891,8 +891,8 @@ function renderEntitySelectorList() {
   });
 
   
-renderTable({
-    target: "selectorList",
+  renderTable({
+    container: document.getElementById("selectorList"),
     rows: filtered,
     columns: [
       {
