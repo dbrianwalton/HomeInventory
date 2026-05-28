@@ -65,7 +65,11 @@
   <div id="content"></div>
 
   <div id="scanner-panel" style="display:none;">
-    <div id="qr-reader"></div>
+    <div class="scanner-video-wrapper">
+      <div id="qr-reader"></div>
+      <canvas id="scanner-overlay"></canvas>
+    </div>
+    <div id="scanner-status"></div>
     <button onclick="stopScanner()">Close Scanner</button>
   </div>
 

@@ -264,6 +264,11 @@ const VIEW_CONFIG = {
     }
   },
 
+  "product-item": {
+    type: "detail",
+    render: renderProductDetail
+  },
+
   "entity-select": {
     render: renderEntitySelector
   },
@@ -353,6 +358,11 @@ const ENTITY_FIELDS = {
     { key: "Label", label: "Label", type: "text" },
     { key: "Notes", label: "Notes", type: "text" },
     { key: "PhysicalLocation", label: "Physical Location", type: "text" }
+  ],
+
+  "product-item": [
+    { key: "Label", label: "Label", type: "text" },
+    { key: "Size",  label: "Size",  type: "text" }
   ]
 };
 
@@ -971,6 +981,82 @@ function renderStorageDetail() {
 }
 
 
+function renderProductDetail() {
+  updateFilterVisibility();
+
+  const item = currentItem;
+  const isAdd = itemMode === "add";
+
+  const context = item._createContext;
+  const contextNote = context?.barcode
+    ? `<div class="subtle-note">Barcode: ${context.barcode}</div>`
+    : "";
+
+  const html = `
+    <div class="card edit-mode">
+      <h2>${isAdd ? "New Product" : item.ProductID}</h2>
+      ${contextNote}
+      <div style="margin-top: 1rem;">
+        ${renderDetailActions()}
+      </div>
+      ${renderDetailForm("product-item", item)}
+    </div>
+  `;
+
+  document.getElementById("content").innerHTML = html;
+  bindDetailEvents();
+}
+
+
+async function saveProduct() {
+  const context = currentItem._createContext || {};
+
+  Object.assign(currentItem, extractFields("product-item"));
+
+  if (!currentItem.Label) {
+    alert("Label is required");
+    return;
+  }
+
+  // Strip internal context key before saving
+  const { _createContext, ...productData } = currentItem;
+
+  try {
+    const newProduct = await createProduct(productData);
+
+    // Link barcode if one was provided
+    if (context.barcode) {
+      await createFoodBarcode({
+        Code: context.barcode,
+        ProductID: newProduct.ProductID
+      });
+    }
+
+    // Assign to the originating food item if the scan came from food-item view
+    if (context.currentItem) {
+      await updateFoodInstance(context.currentItem.InstanceID, {
+        ProductID: newProduct.ProductID
+      });
+
+      const cached = window._foodInstanceCache.find(
+        i => i.InstanceID === context.currentItem.InstanceID
+      );
+      if (cached) cached.ProductID = newProduct.ProductID;
+
+      updatePreviousViewItem(prev => { prev.ProductID = newProduct.ProductID; });
+    }
+
+    resetEditState();
+    goBack();
+    renderView();
+
+  } catch (err) {
+    console.error(err);
+    alert("Error creating product");
+  }
+}
+
+
 function renderEntitySelector() {
   const field = currentItem._selectConfig;
 
@@ -1165,7 +1251,7 @@ function updateModeButton() {
     btn.textContent = interactionMode === "select" ? "✅" : "🔍";
   }
 
-  if (currentView === "food-item" || currentView === "storage-item") {
+  if (currentView === "food-item" || currentView === "storage-item" || currentView === "product-item") {
     btn.textContent = itemMode === "edit" ? "✏️" : "👁️";
   }
 }
@@ -1884,15 +1970,25 @@ function bindDetailEvents() {
             saveFoodInstance();
           } else if (currentView === "storage-item") {
             saveStorage();
+          } else if (currentView === "product-item") {
+            saveProduct();
           }
           break;
 
         case "save-close":
-          saveFoodInstance("close");
+          if (currentView === "product-item") {
+            saveProduct();
+          } else {
+            saveFoodInstance("close");
+          }
           break;
 
         case "save-add":
-          saveFoodInstance("addAnother");
+          if (currentView === "product-item") {
+            saveProduct();
+          } else {
+            saveFoodInstance("addAnother");
+          }
           break;
 
         case "cancel":
@@ -2050,17 +2146,99 @@ function routeScanActions(actions, context = {}, scan = null) {
   showActionPrompt(available, { ...context, scan });
 }
 
+/* --- Scanner state --- */
+let qrScanner = null;
+let scanLastCode = null;
+let scanDebounceTimer = null;
+let scanCooldownUntil = 0;
+
+let scanGlowTimer = null;
+
 function onScanSuccess(decodedText, decodedResult) {
-  handleScan(decodedText, decodedResult);
+  const now = Date.now();
+
+  // Flash green glow on the video wrapper every frame a code is visible
+  const wrapper = document.querySelector('.scanner-video-wrapper');
+  if (wrapper) {
+    wrapper.classList.add('code-detected');
+    clearTimeout(scanGlowTimer);
+    scanGlowTimer = setTimeout(() => wrapper.classList.remove('code-detected'), 400);
+  }
+
+  // Show detected value immediately
+  const statusEl = document.getElementById('scanner-status');
+  if (statusEl) statusEl.textContent = decodedText;
+
+  // Within cooldown for the same code — ignore
+  if (decodedText === scanLastCode && now < scanCooldownUntil) return;
+
+  // New code detected — reset debounce
+  if (decodedText !== scanLastCode) {
+    scanLastCode = decodedText;
+    clearTimeout(scanDebounceTimer);
+    scanDebounceTimer = setTimeout(() => {
+      scanCooldownUntil = Date.now() + 2000;
+      handleScan(decodedText, decodedResult);
+    }, 300);
+  }
+  // Same code, debounce already running — do nothing
 }
 
+function drawScanHighlight(location) {
+  const canvas = document.getElementById('scanner-overlay');
+  if (!canvas || !location) return;
 
-let qrScanner = null;
+  const video = document.querySelector('#qr-reader video');
+  if (!video || !video.videoWidth) return;
+
+  // Size the canvas buffer to match the video's display size
+  const dw = video.clientWidth;
+  const dh = video.clientHeight;
+  if (canvas.width !== dw)  canvas.width  = dw;
+  if (canvas.height !== dh) canvas.height = dh;
+
+  const scaleX = dw / video.videoWidth;
+  const scaleY = dh / video.videoHeight;
+
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, dw, dh);
+
+  // Build point list — QR gives 4 named corners; 1D barcodes may give the same shape
+  const pts = [
+    location.topLeftCorner,
+    location.topRightCorner,
+    location.bottomRightCorner,
+    location.bottomLeftCorner,
+  ].filter(Boolean);
+
+  if (pts.length < 2) return;
+
+  ctx.strokeStyle = '#22c55e';
+  ctx.lineWidth = 8;
+  ctx.shadowColor = '#16a34a';
+  ctx.shadowBlur = 4;
+  ctx.beginPath();
+  ctx.moveTo(pts[0].x * scaleX, pts[0].y * scaleY);
+  for (let i = 1; i < pts.length; i++) {
+    ctx.lineTo(pts[i].x * scaleX, pts[i].y * scaleY);
+  }
+  ctx.closePath();
+  ctx.stroke();
+}
 
 function startScanner() {
   document.getElementById('scanner-panel').style.display = 'block';
 
-  qrScanner = new Html5Qrcode("qr-reader");
+  const formats = [
+    Html5QrcodeSupportedFormats.QR_CODE,
+    Html5QrcodeSupportedFormats.UPC_A,
+    Html5QrcodeSupportedFormats.UPC_E,
+    Html5QrcodeSupportedFormats.EAN_13,
+    Html5QrcodeSupportedFormats.EAN_8,
+    Html5QrcodeSupportedFormats.CODE_128,
+  ];
+
+  qrScanner = new Html5Qrcode("qr-reader", { formatsToSupport: formats });
 
   qrScanner.start(
     { facingMode: "environment" },
@@ -2071,6 +2249,19 @@ function startScanner() {
 
 function stopScanner() {
   if (!qrScanner) return;
+
+  clearTimeout(scanDebounceTimer);
+  clearTimeout(scanGlowTimer);
+  scanDebounceTimer = null;
+  scanGlowTimer = null;
+  scanLastCode = null;
+  scanCooldownUntil = 0;
+
+  const wrapper = document.querySelector('.scanner-video-wrapper');
+  if (wrapper) wrapper.classList.remove('code-detected');
+  const statusEl = document.getElementById('scanner-status');
+  if (statusEl) statusEl.textContent = '';
+
   qrScanner.stop();
   qrScanner = null;
   document.getElementById('scanner-panel').style.display = 'none';

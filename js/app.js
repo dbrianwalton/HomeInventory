@@ -177,12 +177,24 @@ async function assignProduct(item, product) {
   }
 }
 
-/* ---------- PHASE 2 STUB ---------- */
+/* ---------- PRODUCT CREATION ---------- */
 
-// Opens the product-creation flow. Entry points: unknown UPC scan, entity selector "+ Create".
-// TODO Phase 2: implement product-item view (add mode) and wire return context.
+// Opens the product-creation flow. Entry points: unknown UPC scan.
+// Called while currentView === "action-prompt", which already pushed the calling view
+// (food-item or food-list) onto navStack via showActionPrompt. We navigate directly to
+// product-item without an additional pushView() so goBack() returns to the right place.
 function openCreateProduct(context) {
-  alert("Create Product: coming in Phase 2.\nBarcode: " + (context?.barcode || "(none)"));
+  currentView = "product-item";
+  itemMode = "add";
+  currentItem = {
+    Label: "",
+    Size: "",
+    _createContext: context
+  };
+  originalItem = null;
+  clearDirty();
+  updateModeButton();
+  renderView();
 }
 
 /* ---------- PHASE 3 STUB ---------- */

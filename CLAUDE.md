@@ -122,10 +122,30 @@ belong only in detail views (`food-item`, `storage-item`), not in list views.
 
 | View | QR_FI | QR_SL | UPC resolved | UPC unresolved |
 |---|---|---|---|---|
-| `food-list` | Open Item | Open Storage Location | — | Create Product (stub) |
-| `food-item` | Open Item / Transfer (if both inventory) | Assign to Location | Assign Product (if unassigned) | Create Product (stub) |
+| `food-list` | Open Item | Open Storage Location | — | Create Product |
+| `food-item` | Open Item / Transfer (if both inventory) | Assign to Location | Assign Product (if unassigned) | Create Product |
 | `storage-list` | Open Item | Open Storage Location | — | — |
 | `storage-item` | Open Item | — | — | — |
+
+### Product Creation Flow
+
+Entry points: unknown UPC scan from `food-list` or `food-item`. Selector "+ Create" deferred.
+
+`openCreateProduct(context)` is called while in `action-prompt` view. Because
+`showActionPrompt` already called `pushView()` to save the calling view (food-item or
+food-list) onto navStack, `openCreateProduct` does NOT call `pushView()` again — it
+sets `currentView = "product-item"` directly. The context `{ source, barcode, currentItem }`
+is stored in `currentItem._createContext` for `saveProduct()` to use.
+
+**On save (`saveProduct()`):**
+1. `createProduct()` — writes Product row, updates cache
+2. If `context.barcode`: `createFoodBarcode()` — links barcode to new product
+3. If `context.currentItem`: update server + cache + `updatePreviousViewItem` to set
+   `ProductID` on the navStack snapshot, then `goBack()` + `renderView()` — returns to
+   food-item with product already assigned
+4. If no `currentItem`: `goBack()` + `renderView()` — returns to food-list
+
+**Cancel:** `goBack()` → returns to calling view with no changes.
 
 ---
 
@@ -254,7 +274,8 @@ Uses Google Identity Services (GIS) `initTokenClient` with implicit/token flow.
 - Full CRUD for FoodInstances and StorageLocations
 - FoodInstanceEvent creation (ADD / REMOVE / INVENTORY)
 - Inventory quantity computation with INVENTORY event anchoring
-- Product and FoodBarcode creation (API layer complete)
+- Product and FoodBarcode creation (API layer + product-item add form complete)
+- Product creation flow: unknown UPC scan → product-item form → save creates Product + FoodBarcode + optionally assigns to FoodInstance
 - QR scanner (html5-qrcode), UPC scanning
 - Scan dispatch + action prompt system
 - CONFIG-driven field rendering, entity selector, form validation
@@ -264,14 +285,31 @@ Uses Google Identity Services (GIS) `initTokenClient` with implicit/token flow.
 - PWA manifest (installable)
 
 ### Missing / Stubbed (as of session 2026-05-28)
-- `findFoodInstance(id)` / `findStorageLocation(id)` — ENTITY_RESOLVERS lookup functions
-- `handleScanInput()` — manual barcode entry button handler
-- `assignLocation(item, locationId)` — scan-triggered location assignment
-- `assignProduct(item, product)` — scan-triggered product assignment
-- `renderEventList()` — Events tab view
 - `startTransfer(source, target)` — Phase 3, stubbed
-- `openCreateProduct(context)` — Phase 2, stubbed (product creation form)
-- Product-item detail view (no VIEW_CONFIG entry yet)
+- Product-item edit/view mode (add mode works; view/edit of existing products deferred)
+
+### Scanner UX — Debounce + Canvas Overlay
+
+`onScanSuccess` fires every frame a code is in view (~10×/sec). Two enhancements:
+
+1. **Barcode format support:** `Html5Qrcode` constructor takes `{ formatsToSupport: [...] }` using
+   `Html5QrcodeSupportedFormats` enum. Include QR_CODE, UPC_A, UPC_E, EAN_13, EAN_8, CODE_128.
+
+2. **Debounce:** Three scanner state variables track debounce: `_scanLastCode`, `_scanDebounceTimer`,
+   `_scanCooldownUntil`. On first detection of a new code, show detected text in `#scanner-status`
+   and start a 600ms timer. If the same code is still seen when the timer fires, call `handleScan`.
+   After firing, impose a 2-second cooldown before the same code can fire again. Different code resets
+   immediately.
+
+3. **Canvas overlay:** A `<canvas id="scanner-overlay">` is absolutely positioned over `#qr-reader`.
+   `drawScanHighlight(location, formatName)` draws a green polygon each frame using
+   `decodedResult.result.location` corner points, scaled from camera resolution to display size via
+   `video.clientWidth / video.videoWidth`. Canvas is cleared in `stopScanner()`.
+
+4. **`stopScanner()`** clears `_scanDebounceTimer` and resets `_scanLastCode` / `_scanCooldownUntil`.
+
+HTML: `#scanner-panel` wraps a `position:relative` container holding `#qr-reader` and the overlay
+canvas, plus a `#scanner-status` text div below.
 
 ### Known Tech Debt
 - `updateFoodInstance` / `updateStorageLocation` re-fetch sheet on every save (could use
