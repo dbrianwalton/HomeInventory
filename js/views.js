@@ -888,7 +888,7 @@ function applyEntitySelection(fieldKey, selectedID) {
 
 function updatePreviousViewItem(updater) {
   const prev = navStack[navStack.length - 1];
-  if (prev?.item) {
+  if (prev?.currentItem) {
     updater(prev.item);
   }
 }
