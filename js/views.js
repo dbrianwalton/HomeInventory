@@ -840,6 +840,10 @@ function renderEntitySelector() {
 
   let html = `
     <div class="card">
+      <div style="margin-bottom: 1rem;">
+        <button id="selectorBack">Back</button>
+      </div>
+
       <h2>Select ${field.label}</h2>
       <ul>
   `;
@@ -864,6 +868,10 @@ function renderEntitySelector() {
 
   container.innerHTML = html;
 
+  document.getElementById("selectorBack").addEventListener("click", () => {
+    goBack();
+    renderView();
+  });
   
   container.querySelectorAll("[data-entity-id]").forEach(btn => {
     btn.addEventListener("click", () => {
