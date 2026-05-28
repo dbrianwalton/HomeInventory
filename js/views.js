@@ -836,13 +836,10 @@ function renderStorageDetail() {
 
 function renderEntitySelector() {
   const field = currentItem._selectConfig;
-  const fieldKey = currentItem._selectField;
-
-  const list = field.getOptions ? field.getOptions() : [];
 
   const container = document.getElementById("content");
 
-  let html = `
+  container.innerHTML = `
     <div class="card">
       <div style="margin-bottom: 1rem;">
         <button id="selectorBack">Cancel</button>
@@ -853,18 +850,37 @@ function renderEntitySelector() {
       <input 
         id="selectorSearch" 
         placeholder="Search..." 
-        autocomplete="off"
-        spellcheck="false"
-        value="${selectorSearchTerm}"
         style="width: 100%; margin-bottom: 1rem;"
       />
 
-      <ul>
+      <div id="selectorList"></div>
+    </div>
   `;
+  
+  document.getElementById("selectorBack").addEventListener("click", () => {
+    goBack();
+    renderView();
+  });
 
-  const rawList = field.getOptions ? field.getOptions() : [];
+  const input = document.getElementById("selectorSearch");
 
-  const filteredList = rawList.filter(item => {
+  input.value = selectorSearchTerm;
+
+  input.addEventListener("input", (e) => {
+    selectorSearchTerm = e.target.value;
+    renderEntitySelectorList();   // ✅ only update list
+  });
+
+  renderEntitySelectorList();
+}
+
+function renderEntitySelectorList() {
+  const field = currentItem._selectConfig;
+  const fieldKey = currentItem._selectField;
+
+  const list = field.getOptions ? field.getOptions() : [];
+
+  const filtered = list.filter(item => {
     if (!selectorSearchTerm) return true;
 
     const text = field.getSearchText
@@ -874,7 +890,11 @@ function renderEntitySelector() {
     return text.includes(selectorSearchTerm.toLowerCase());
   });
 
-  filteredList.forEach(item => {
+  const container = document.getElementById("selectorList");
+
+  let html = "<ul>";
+
+  filtered.forEach(item => {
     const id = field.getId(item);
     const label = field.getLabel(item);
 
@@ -887,43 +907,22 @@ function renderEntitySelector() {
     `;
   });
 
-  html += `
-      </ul>
-    </div>
-  `;
+  html += "</ul>";
 
   container.innerHTML = html;
-
-  document.getElementById("selectorSearch").addEventListener("input", (e) => {
-    selectorSearchTerm = e.target.value;
-
-    renderEntitySelector();
-
-    const input = document.getElementById("selectorSearch");
-    if (input) {
-      input.focus();
-
-      // move cursor to end
-      const len = input.value.length;
-      input.setSelectionRange(len, len);
-    }
-  });
-  
-  document.getElementById("selectorBack").addEventListener("click", () => {
-    goBack();
-    renderView();
-  });
-
   container.querySelectorAll("[data-entity-id]").forEach(btn => {
     btn.addEventListener("click", () => {
       const selectedID = btn.dataset.entityId;
 
-      applyEntitySelection(fieldKey, selectedID);
+      updatePreviousViewItem(item => {
+        item[fieldKey] = selectedID;
+      });
+
+      goBack();
+      renderView();
     });
   });
-
-}
-
+}  
 
 function applyEntitySelection(fieldKey, selectedID) {
   updatePreviousViewItem(item => {
