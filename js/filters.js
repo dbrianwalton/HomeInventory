@@ -110,7 +110,7 @@ function renderFilterUI() {
           class="filters-toggle"
           aria-expanded="${filtersExpanded}"
         >
-          ${filtersExpanded ? '▾' : '▸'}
+          ${filtersExpanded ? '\u25BE' : '\u25B8'}
         </button>
       ` : ''}
 
@@ -177,7 +177,7 @@ function toggleFilters() {
   }
 
   if (button) {
-    button.textContent = filtersExpanded ? '▾' : '▸';
+    button.textContent = filtersExpanded ? '\u25BE' : '\u25B8';
   }
 }
 

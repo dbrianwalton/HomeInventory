@@ -436,6 +436,28 @@ body.select-mode .inventory-table tbody tr {
   cursor: pointer;
 }
 
+/* ---------- ACTION PROMPT ---------- */
+
+.action-context {
+  background: #f3f4f6;
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 1rem;
+  font-size: 0.95rem;
+}
+
+.action-context-row {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.2rem;
+}
+
+.action-context-label {
+  font-weight: 600;
+  flex: 0 0 4.5rem;
+  color: #555;
+}
+
 /* ---------- STATES ---------- */
 
 .warning { color: #b45309; }

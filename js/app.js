@@ -100,3 +100,95 @@ const ENTITY_RESOLVERS = {
   //FoodInstanceEvent: findFoodInstanceEvent,
   //ProductionEvent: findProductionEvent
 };
+
+/* ---------- ENTITY RESOLVERS ---------- */
+
+function findFoodInstance(id) {
+  return (window._foodInstanceCache || []).find(i => i.InstanceID === id) || null;
+}
+
+function findStorageLocation(id) {
+  return window._storageMap?.[id] || null;
+}
+
+/* ---------- MANUAL SCAN INPUT ---------- */
+
+// Called by the "Scan" button next to the barcode text input in index.html.
+// Detects whether the entered text is one of our entity IDs (treat as QR)
+// or an external barcode (treat as UPC).
+function handleScanInput() {
+  const input = document.getElementById('barcodeInput');
+  const text = input.value.trim();
+  if (!text) return;
+
+  // If the text parses as one of our entity IDs, treat it as a QR scan.
+  // Also handle the JSON envelope format that our QR labels use.
+  let idCandidate = text;
+  try {
+    const envelope = JSON.parse(text);
+    idCandidate = envelope.id || text;
+  } catch (e) { /* not JSON */ }
+
+  const format = parseID(idCandidate) ? "QR_CODE" : "BARCODE";
+
+  handleScan(text, { result: { format: { formatName: format } } });
+  input.value = '';
+}
+
+/* ---------- SCAN-TRIGGERED MUTATIONS ---------- */
+
+// Assigns a storage location to a food instance.
+// Called from VIEW_CONFIG onScan when a QR_SL is scanned in the food-item view.
+async function assignLocation(item, locationId) {
+  try {
+    await updateFoodInstance(item.InstanceID, { StorageLocationID: locationId });
+
+    // Update cache
+    const cached = window._foodInstanceCache.find(i => i.InstanceID === item.InstanceID);
+    if (cached) cached.StorageLocationID = locationId;
+
+    // Patch the navStack snapshot so goBack() restores the updated item
+    updatePreviousViewItem(prev => { prev.StorageLocationID = locationId; });
+    goBack();
+    renderView();
+  } catch (err) {
+    console.error(err);
+    alert("Error assigning location");
+  }
+}
+
+// Assigns a product to a food instance.
+// Called from VIEW_CONFIG onScan when a known UPC is scanned in the food-item view.
+async function assignProduct(item, product) {
+  try {
+    await updateFoodInstance(item.InstanceID, { ProductID: product.ProductID });
+
+    // Update cache
+    const cached = window._foodInstanceCache.find(i => i.InstanceID === item.InstanceID);
+    if (cached) cached.ProductID = product.ProductID;
+
+    // Patch the navStack snapshot so goBack() restores the updated item
+    updatePreviousViewItem(prev => { prev.ProductID = product.ProductID; });
+    goBack();
+    renderView();
+  } catch (err) {
+    console.error(err);
+    alert("Error assigning product");
+  }
+}
+
+/* ---------- PHASE 2 STUB ---------- */
+
+// Opens the product-creation flow. Entry points: unknown UPC scan, entity selector "+ Create".
+// TODO Phase 2: implement product-item view (add mode) and wire return context.
+function openCreateProduct(context) {
+  alert("Create Product: coming in Phase 2.\nBarcode: " + (context?.barcode || "(none)"));
+}
+
+/* ---------- PHASE 3 STUB ---------- */
+
+// Transfers inventory quantity from sourceItem to targetItem.
+// TODO Phase 3: show quantity prompt, create REMOVE on source + ADD on target.
+function startTransfer(sourceItem, targetItem) {
+  alert("Transfer: coming in Phase 3.\nFrom: " + sourceItem.InstanceID + "\nTo: " + targetItem.InstanceID);
+}

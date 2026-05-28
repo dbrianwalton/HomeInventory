@@ -88,24 +88,14 @@ const VIEW_CONFIG = {
       ]
     },
 
-    onScan: ({ currentItem, scan }) => {
+    onScan: ({ scan }) => {
+      // List view: navigation only. currentItem-dependent actions live in food-item.
       if (scan.type === "QR_FI") {
-        const scannedItem = scan.entity;
-
         return [
           {
             label: "Open Item",
             riskLevel: "safe",
             execute: () => showFoodInstance(scan.id)
-          },
-          {
-            label: "Transfer Inventory",
-            condition: () =>
-              currentItem.Model === "inventory" &&
-              scannedItem?.Model === "inventory",
-            riskLevel: "warn",
-            warningMessage: () => "Transfer inventory?",
-            execute: () => startTransfer(currentItem, scannedItem)
           }
         ];
       }
@@ -113,40 +103,25 @@ const VIEW_CONFIG = {
       if (scan.type === "QR_SL") {
         return [
           {
-            label: "Assign to Location",
-            riskLevel: "warn",
-            warningMessage: () => "Change storage location?",
-            execute: () => assignLocation(currentItem, scan.id)
+            label: "Open Storage Location",
+            riskLevel: "safe",
+            execute: () => showStorageLocation(scan.id)
           }
         ];
       }
 
       if (scan.type === "UPC") {
-        // Known UPC
-        if (scan.resolved) {
+        if (!scan.resolved) {
           return [
             {
-              label: "Assign Product",
-              condition: () => !currentItem.ProductID,
-              riskLevel: "warn",
-              warningMessage: () => "Assign this product?",
-              execute: () => assignProduct(currentItem, scan.product)
+              label: "Create Product",
+              riskLevel: "safe",
+              execute: () => openCreateProduct({ source: "scan", barcode: scan.code })
             }
           ];
         }
-
-        // Unknown UPC
-        return [
-          {
-            label: "Create Product",
-            riskLevel: "safe",
-            execute: () => openCreateProduct({
-              source: "scan",
-              barcode: scan.code,
-              currentItem
-            })
-          }
-        ];
+        // Known UPC from list view — no action defined yet
+        return [];
       }
 
       return [];
@@ -176,17 +151,117 @@ const VIEW_CONFIG = {
           }
         }
       ]
+    },
+
+    onScan: ({ scan }) => {
+      if (scan.type === "QR_FI") {
+        return [
+          {
+            label: "Open Item",
+            riskLevel: "safe",
+            execute: () => showFoodInstance(scan.id)
+          }
+        ];
+      }
+
+      if (scan.type === "QR_SL") {
+        return [
+          {
+            label: "Open Storage Location",
+            riskLevel: "safe",
+            execute: () => showStorageLocation(scan.id)
+          }
+        ];
+      }
+
+      return [];
     }
   },
 
   "food-item": {
     type: "detail",
-    render: renderFoodInstanceDetail
+    render: renderFoodInstanceDetail,
+
+    onScan: ({ currentItem, scan }) => {
+      if (scan.type === "QR_SL") {
+        return [
+          {
+            label: "Assign to Location",
+            riskLevel: "warn",
+            warningMessage: () => "Change storage location?",
+            execute: () => assignLocation(currentItem, scan.id)
+          }
+        ];
+      }
+
+      if (scan.type === "QR_FI") {
+        const scannedItem = scan.entity;
+        return [
+          {
+            label: "Open Item",
+            riskLevel: "safe",
+            execute: () => showFoodInstance(scan.id)
+          },
+          {
+            label: "Transfer Inventory",
+            condition: () =>
+              currentItem?.Model === "inventory" &&
+              scannedItem?.Model === "inventory",
+            riskLevel: "warn",
+            warningMessage: () => "Transfer inventory?",
+            execute: () => startTransfer(currentItem, scannedItem)
+          }
+        ];
+      }
+
+      if (scan.type === "UPC") {
+        if (scan.resolved) {
+          return [
+            {
+              label: "Assign Product",
+              condition: () => !currentItem.ProductID,
+              riskLevel: "warn",
+              warningMessage: () => "Assign this product?",
+              execute: () => assignProduct(currentItem, scan.product)
+            }
+          ];
+        }
+
+        // Unknown UPC — offer to create a product and link the barcode
+        return [
+          {
+            label: "Create Product",
+            riskLevel: "safe",
+            execute: () => openCreateProduct({
+              source: "scan",
+              barcode: scan.code,
+              currentItem
+            })
+          }
+        ];
+      }
+
+      return [];
+    }
   },
 
   "storage-item": {
     type: "detail",
-    render: renderStorageDetail
+    render: renderStorageDetail,
+
+    onScan: ({ scan }) => {
+      if (scan.type === "QR_FI") {
+        return [
+          {
+            label: "Open Item",
+            riskLevel: "safe",
+            execute: () => showFoodInstance(scan.id)
+          }
+        ];
+      }
+
+      return [];
+    }
   },
 
   "entity-select": {
@@ -223,7 +298,7 @@ const LABEL_CONFIG = {
 
     getId: (item) => item.StorageLocationID,
 
-    buildQR: (item) => JSON.stringify({ storage: item.StorageLocationID }),
+    buildQR: (item) => JSON.stringify({ id: item.StorageLocationID }),
 
     fields: [
       { key: "Label", bold: true, fontSize: 14, maxLines: 2 },
@@ -479,7 +554,7 @@ function renderTable({
                 <th data-col-index="${idx}" ${c.field ? 'class="sortable"' : ''}>
                   ${c.label} ${
                     inventorySort.field === c.field
-                      ? (inventorySort.direction === 'asc' ? '▲' : '▼')
+                      ? (inventorySort.direction === 'asc' ? '\u25B2' : '\u25BC')
                       : ''
                   }
                 </th>
@@ -618,7 +693,7 @@ function renderFoodInstanceList() {
 
   content.innerHTML = `
     <div class="list-actions">
-      <button onclick="addFoodInstance()">＋</button>
+      <button onclick="addFoodInstance()">\uFF0B</button>
     </div>
     <div id="food-table-container"></div>
   `;
@@ -741,9 +816,9 @@ function renderFoodInstanceDetail() {
 
   const inventoryActions = `
       <div class="inventory-actions ${item.Model !== "inventory" ? "hidden" : ""}">
-        <button data-inv-action="add" ${disabledAttr}>➕</button>
-        <button data-inv-action="remove" ${disabledAttr}>➖</button>
-        <button data-inv-action="inventory" ${disabledAttr}>🟰</button>
+        <button data-inv-action="add" ${disabledAttr}>\u2795</button>
+        <button data-inv-action="remove" ${disabledAttr}>\u2796</button>
+        <button data-inv-action="inventory" ${disabledAttr}>\u{1F7F0}</button>
       </div>
     `;
       
@@ -1082,7 +1157,7 @@ function updateModeButton() {
   const btn = document.getElementById("modeButton");
 
   if (itemMode === "add") {
-    btn.textContent = "➕";
+    btn.textContent = "\u2795";
     return;
   }
 
@@ -1115,24 +1190,71 @@ function showActionPrompt(actions, context) {
   renderView();
 }
 
+function describeActionContext(context) {
+  const lines = [];
+
+  // Describe the item currently being viewed
+  if (context.currentItem) {
+    const item = context.currentItem;
+    const id = item.InstanceID || item.StorageLocationID || "";
+    const label = item.Label || "";
+    lines.push(`<div class="action-context-row">
+      <span class="action-context-label">Viewing:</span>
+      <span>${id}${label ? " — " + label : ""}</span>
+    </div>`);
+  }
+
+  // Describe the scanned entity
+  const scan = context.scan;
+  if (scan) {
+    let scannedDesc = "";
+
+    if (scan.type === "QR_FI") {
+      const e = scan.entity;
+      scannedDesc = e
+        ? `${e.InstanceID} — ${e.Label || ""}`
+        : scan.id;
+    } else if (scan.type === "QR_SL") {
+      const e = scan.entity;
+      scannedDesc = e
+        ? `${e.StorageLocationID} — ${formatStorageLabel(e)}`
+        : scan.id;
+    } else if (scan.type === "UPC") {
+      scannedDesc = scan.resolved && scan.product
+        ? formatProductLabel(scan.product)
+        : `Barcode: ${scan.code}`;
+    }
+
+    if (scannedDesc) {
+      lines.push(`<div class="action-context-row">
+        <span class="action-context-label">Scanned:</span>
+        <span>${scannedDesc}</span>
+      </div>`);
+    }
+  }
+
+  return lines.length
+    ? `<div class="action-context">${lines.join("")}</div>`
+    : "";
+}
+
 function renderActionPrompt() {
   const container = document.getElementById("content");
 
+  // currentActionList is already condition-filtered by routeScanActions
+  const actions = currentActionList;
   const context = currentActionContext;
-
-  // Evaluate conditions
-  const availableActions = currentActionList.filter(a => {
-    return !a.condition || a.condition(context);
-  });
 
   let html = `
     <div class="card">
       <h2>Choose Action</h2>
 
+      ${describeActionContext(context)}
+
       <ul>
   `;
 
-  availableActions.forEach((action, idx) => {
+  actions.forEach((action, idx) => {
     html += `
       <li>
         <button data-action-index="${idx}">
@@ -1151,11 +1273,10 @@ function renderActionPrompt() {
 
   container.innerHTML = html;
 
-  // bind actions
   container.querySelectorAll("[data-action-index]").forEach(btn => {
     btn.addEventListener("click", () => {
       const index = parseInt(btn.dataset.actionIndex, 10);
-      handleActionSelection(availableActions[index]);
+      handleActionSelection(actions[index]);
     });
   });
 
@@ -1400,6 +1521,13 @@ function formatProductLabel(p) {
   return p.Label + (p.Size ? ` (${p.Size})` : "");
 }
 
+function formatStorageLabel(storage) {
+  if (!storage) return "Unassigned";
+  return storage.PhysicalLocation
+    ? `${storage.Label} (${storage.PhysicalLocation})`
+    : storage.Label;
+}
+
 
 function getAllFoodInstances() {
   return window._foodInstanceCache || [];
@@ -1556,9 +1684,7 @@ function renderField(field, item, readOnly) {
   // Storage special case
   if (field.type === "storage-select") {
     const storage = window._storageMap?.[value];
-    const storageText = storage
-      ? `${storage.Label} (${storage.PhysicalLocation})`
-      : "Unassigned";
+    const storageText = formatStorageLabel(storage);
 
     if (readOnly || !editable) {
       return `<button data-storage-link="${value}">
@@ -1575,7 +1701,7 @@ function renderField(field, item, readOnly) {
         ${(window._storageLocationCache || []).map(s => `
           <option value="${s.StorageLocationID}"
             ${s.StorageLocationID === value ? "selected" : ""}>
-            ${s.Label} (${s.PhysicalLocation})
+            ${formatStorageLabel(s)}
           </option>
         `).join('')}
       </select>
@@ -1848,7 +1974,20 @@ function resolveScan(text, format) {
 
   // QR handling
   if (format === "QR_CODE") {
-    const parsed = parseID(text);
+    // QR codes are JSON envelopes: {"id":"FI-00001"} or {"storage":"SL-00001"}
+    // or {"appID":"BTM-Inventory","id":"FI-00001"}.
+    // Fall back to treating raw text as a plain ID for backward compatibility.
+    let idString = text;
+    try {
+      const envelope = JSON.parse(text);
+      // "id" is the canonical key for all entity types.
+      // The entity type is determined by the ID prefix (FI-, SL-, etc.).
+      idString = envelope.id || text;
+    } catch (e) {
+      // not JSON — use raw text as-is
+    }
+
+    const parsed = parseID(idString);
 
     if (parsed) {
       const resolver = ENTITY_RESOLVERS[parsed.entityType];
@@ -1891,21 +2030,24 @@ function dispatchScan(scan) {
     scan
   }) || [];
 
-  routeScanActions(actions);
+  routeScanActions(actions, context, scan);
 }
 
 
-function routeScanActions(actions) {
+function routeScanActions(actions, context = {}, scan = null) {
   if (!actions.length) return;
 
-  // optional optimization
-  if (actions.length === 1 && actions[0].riskLevel === "safe") {
-    actions[0].execute();
+  // Filter by condition before deciding on auto-execute
+  const available = actions.filter(a => !a.condition || a.condition(context));
+
+  if (!available.length) return;
+
+  if (available.length === 1 && available[0].riskLevel === "safe") {
+    available[0].execute();
     return;
   }
 
-  // otherwise show prompt
-  showActionPrompt(actions, {});
+  showActionPrompt(available, { ...context, scan });
 }
 
 function onScanSuccess(decodedText, decodedResult) {
@@ -2138,6 +2280,60 @@ async function drawLabel(doc, item, x, y, config) {
   textY = y + padding;
 
   drawFields(doc, item, config, textX, textY);
+}
+
+/* ------- EVENT LIST (Events tab) -------- */
+
+function renderEventList() {
+  const events = window._foodInstanceEventCache || [];
+
+  // Sort newest first by default
+  const sorted = [...events]
+    .filter(e => e.Active !== false)
+    .sort((a, b) => b.Timestamp - a.Timestamp);
+
+  const content = document.getElementById('content');
+
+  content.innerHTML = `
+    <div id="event-list-container"></div>
+  `;
+
+  renderTable({
+    container: document.getElementById('event-list-container'),
+    rows: sorted,
+    getRowId: r => r.EventID,
+    enableSelection: false,
+    onRowClick: (event, id) => {
+      // Navigate to the food instance this event belongs to
+      const ev = sorted.find(e => e.EventID === id);
+      if (ev?.InstanceID) showFoodInstance(ev.InstanceID);
+    },
+    columns: [
+      {
+        label: "Timestamp",
+        field: "Timestamp",
+        render: r => r.Timestamp
+          ? new Date(r.Timestamp).toLocaleString()
+          : ''
+      },
+      {
+        label: "Instance",
+        render: r => r.InstanceID || ''
+      },
+      {
+        label: "Type",
+        render: r => r.EventType || ''
+      },
+      {
+        label: "Qty",
+        render: r => r.Quantity != null ? r.Quantity : ''
+      },
+      {
+        label: "Notes",
+        render: r => r.Notes || ''
+      }
+    ]
+  });
 }
 
 /* ------- FOOD EVENTS -------- */
