@@ -890,37 +890,30 @@ function renderEntitySelectorList() {
     return text.includes(selectorSearchTerm.toLowerCase());
   });
 
-  const container = document.getElementById("selectorList");
+  
+renderTable({
+    target: "selectorList",
 
-  let html = "<ul>";
+    rows: filtered,
 
-  filtered.forEach(item => {
-    const id = field.getId(item);
-    const label = field.getLabel(item);
+    columns: [
+      {
+        key: "label",
+        label: field.label,
+        render: (row) => field.getLabel(row)
+      }
+    ],
 
-    html += `
-      <li>
-        <button data-entity-id="${id}">
-          ${label}
-        </button>
-      </li>
-    `;
-  });
-
-  html += "</ul>";
-
-  container.innerHTML = html;
-  container.querySelectorAll("[data-entity-id]").forEach(btn => {
-    btn.addEventListener("click", () => {
-      const selectedID = btn.dataset.entityId;
+    onRowClick: (row) => {
+      const id = field.getId(row);
 
       updatePreviousViewItem(item => {
-        item[fieldKey] = selectedID;
+        item[fieldKey] = id;
       });
 
       goBack();
       renderView();
-    });
+    }
   });
 }  
 
