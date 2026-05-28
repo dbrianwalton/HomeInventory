@@ -853,6 +853,8 @@ function renderEntitySelector() {
       <input 
         id="selectorSearch" 
         placeholder="Search..." 
+        autocomplete="off"
+        spellcheck="false"
         value="${selectorSearchTerm}"
         style="width: 100%; margin-bottom: 1rem;"
       />
@@ -894,7 +896,17 @@ function renderEntitySelector() {
 
   document.getElementById("selectorSearch").addEventListener("input", (e) => {
     selectorSearchTerm = e.target.value;
+
     renderEntitySelector();
+
+    const input = document.getElementById("selectorSearch");
+    if (input) {
+      input.focus();
+
+      // move cursor to end
+      const len = input.value.length;
+      input.setSelectionRange(len, len);
+    }
   });
   
   document.getElementById("selectorBack").addEventListener("click", () => {

@@ -36,6 +36,7 @@ let inventorySort = {
 let showAllEvents = false;
 
 let filtersExpanded = false;
+let selectorSearchTerm = "";
 
 let selectedItems = new Set();
 
