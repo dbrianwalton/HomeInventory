@@ -893,9 +893,7 @@ function renderEntitySelectorList() {
   
 renderTable({
     target: "selectorList",
-
     rows: filtered,
-
     columns: [
       {
         key: "label",
@@ -903,7 +901,7 @@ renderTable({
         render: (row) => field.getLabel(row)
       }
     ],
-
+    getRowId: r => r.ProductID,
     onRowClick: (row) => {
       const id = field.getId(row);
 
