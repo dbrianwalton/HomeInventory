@@ -86,8 +86,9 @@ const ID_CONFIG = {
   FoodInstance: "FI",
   StorageLocation: "SL",
   FoodInstanceEvent: "EV",
-  ProductionEvent: "PE"
-  // add more types here as needed
+  ProductionEvent: "PE",
+  Product: "PR",
+  FoodBarcode: "FB"
 };
 
 const PREFIX_TO_ENTITY = Object.fromEntries(

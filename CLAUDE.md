@@ -311,6 +311,55 @@ Uses Google Identity Services (GIS) `initTokenClient` with implicit/token flow.
 HTML: `#scanner-panel` wraps a `position:relative` container holding `#qr-reader` and the overlay
 canvas, plus a `#scanner-status` text div below.
 
+### Scanner Action Modes — Navigate vs. Repeat
+
+The scanner panel covers the full interface. This drives the close/reopen model:
+
+**`stopScanner()` is always called inside `routeScanActions` before any action fires** — whether
+auto-executing a single safe action or routing to the action-prompt. The camera is never kept open
+while the action-prompt is visible.
+
+Each action object declares `scanMode: "navigate" | "repeat"` (all current actions are `"navigate"`).
+
+- **Navigate mode**: camera closes, user lands in a new view. No special handling needed after close.
+- **Repeat mode**: camera closes for any action-prompt, then the action's `execute()` function is
+  responsible for reopening the scanner (via `startScanner()`) after setting up the session context.
+  `handleActionSelection` does NOT reopen the camera — that is the execute function's responsibility.
+
+`scanMode` is available as a signal for UI labeling (e.g. action-prompt could style repeat-mode
+buttons differently) but it is NOT used as routing logic — the close is always unconditional.
+
+### Repeat-Scan Sessions — Roadmap (not yet implemented)
+
+Two repeat-scan session types are planned, both anchored to a storage location:
+
+**`inventory-check`**: User scans each FoodInstance QR in a physical storage tub to verify contents.
+Items in the storage location's cache are shown as a checklist. Scanning an item checks it off.
+Items without QR labels can be tapped manually on the checklist.
+
+**`assign-items`**: User scans multiple FoodInstance QR codes to assign them all to the current
+storage location in bulk.
+
+**Entry points (two paths):**
+
+1. **Camera arrival** — scanning a storage location QR presents an action-prompt:
+   `[ View Storage | Inventory Check | Assign Items ]`.
+   "View Storage" is navigate mode. The other two are repeat mode and reopen the scanner after
+   navigating to storage-item.
+
+2. **Manual arrival** — buttons on the storage-item detail view launch the same sessions directly,
+   opening the scanner in repeat mode without requiring an initial QR scan.
+
+**Session state** (to be added to state.js when implemented):
+```js
+let repeatScanSession = null;
+// active session shape:
+// { type: "inventory-check"|"assign-items", storageLocationID, processedItems: Set }
+```
+
+While a session is active, `storage-item` renders a session UI overlay (checklist + Done button).
+Ending the session clears `repeatScanSession` and stops the scanner.
+
 ### Known Tech Debt
 - `updateFoodInstance` / `updateStorageLocation` re-fetch sheet on every save (could use
   cached row index)

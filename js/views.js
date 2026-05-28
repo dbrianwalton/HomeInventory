@@ -94,6 +94,7 @@ const VIEW_CONFIG = {
         return [
           {
             label: "Open Item",
+            scanMode: "navigate",
             riskLevel: "safe",
             execute: () => showFoodInstance(scan.id)
           }
@@ -104,6 +105,7 @@ const VIEW_CONFIG = {
         return [
           {
             label: "Open Storage Location",
+            scanMode: "navigate",
             riskLevel: "safe",
             execute: () => showStorageLocation(scan.id)
           }
@@ -115,6 +117,7 @@ const VIEW_CONFIG = {
           return [
             {
               label: "Create Product",
+              scanMode: "navigate",
               riskLevel: "safe",
               execute: () => openCreateProduct({ source: "scan", barcode: scan.code })
             }
@@ -158,6 +161,7 @@ const VIEW_CONFIG = {
         return [
           {
             label: "Open Item",
+            scanMode: "navigate",
             riskLevel: "safe",
             execute: () => showFoodInstance(scan.id)
           }
@@ -168,6 +172,7 @@ const VIEW_CONFIG = {
         return [
           {
             label: "Open Storage Location",
+            scanMode: "navigate",
             riskLevel: "safe",
             execute: () => showStorageLocation(scan.id)
           }
@@ -187,6 +192,7 @@ const VIEW_CONFIG = {
         return [
           {
             label: "Assign to Location",
+            scanMode: "navigate",
             riskLevel: "warn",
             warningMessage: () => "Change storage location?",
             execute: () => assignLocation(currentItem, scan.id)
@@ -199,11 +205,13 @@ const VIEW_CONFIG = {
         return [
           {
             label: "Open Item",
+            scanMode: "navigate",
             riskLevel: "safe",
             execute: () => showFoodInstance(scan.id)
           },
           {
             label: "Transfer Inventory",
+            scanMode: "navigate",
             condition: () =>
               currentItem?.Model === "inventory" &&
               scannedItem?.Model === "inventory",
@@ -219,6 +227,7 @@ const VIEW_CONFIG = {
           return [
             {
               label: "Assign Product",
+              scanMode: "navigate",
               condition: () => !currentItem.ProductID,
               riskLevel: "warn",
               warningMessage: () => "Assign this product?",
@@ -231,6 +240,7 @@ const VIEW_CONFIG = {
         return [
           {
             label: "Create Product",
+            scanMode: "navigate",
             riskLevel: "safe",
             execute: () => openCreateProduct({
               source: "scan",
@@ -254,6 +264,7 @@ const VIEW_CONFIG = {
         return [
           {
             label: "Open Item",
+            scanMode: "navigate",
             riskLevel: "safe",
             execute: () => showFoodInstance(scan.id)
           }
@@ -2137,6 +2148,11 @@ function routeScanActions(actions, context = {}, scan = null) {
   const available = actions.filter(a => !a.condition || a.condition(context));
 
   if (!available.length) return;
+
+  // Always close the scanner before any action fires. The scanner panel covers
+  // the full interface, so it must be closed before the action-prompt or a new
+  // view is rendered. Repeat-mode actions are responsible for reopening it.
+  stopScanner();
 
   if (available.length === 1 && available[0].riskLevel === "safe") {
     available[0].execute();
