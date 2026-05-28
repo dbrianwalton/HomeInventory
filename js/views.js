@@ -199,7 +199,7 @@ const ENTITY_FIELDS = {
 
       getSearchText: e => {
         return `${e.Label} ${e.Size || ""}`.toLowerCase();
-      }
+      },
 
       getLabel: (entityItem) => {
         return entityItem.Label + (entityItem.Size ? ` (${entityItem.Size})` : "");
