@@ -86,6 +86,70 @@ const VIEW_CONFIG = {
           onClear: clearStorageScope
         }
       ]
+    },
+
+    onScan: ({ currentItem, scan }) => {
+      if (scan.type === "QR_FI") {
+        const scannedItem = scan.entity;
+
+        return [
+          {
+            label: "Open Item",
+            riskLevel: "safe",
+            execute: () => showFoodInstance(scan.id)
+          },
+          {
+            label: "Transfer Inventory",
+            condition: () =>
+              currentItem.Model === "inventory" &&
+              scannedItem?.Model === "inventory",
+            riskLevel: "warn",
+            warningMessage: () => "Transfer inventory?",
+            execute: () => startTransfer(currentItem, scannedItem)
+          }
+        ];
+      }
+
+      if (scan.type === "QR_SL") {
+        return [
+          {
+            label: "Assign to Location",
+            riskLevel: "warn",
+            warningMessage: () => "Change storage location?",
+            execute: () => assignLocation(currentItem, scan.id)
+          }
+        ];
+      }
+
+      if (scan.type === "UPC") {
+        // Known UPC
+        if (scan.resolved) {
+          return [
+            {
+              label: "Assign Product",
+              condition: () => !currentItem.ProductID,
+              riskLevel: "warn",
+              warningMessage: () => "Assign this product?",
+              execute: () => assignProduct(currentItem, scan.product)
+            }
+          ];
+        }
+
+        // Unknown UPC
+        return [
+          {
+            label: "Create Product",
+            riskLevel: "safe",
+            execute: () => openCreateProduct({
+              source: "scan",
+              barcode: scan.code,
+              currentItem
+            })
+          }
+        ];
+      }
+
+      return [];
     }
   },
 
@@ -127,6 +191,10 @@ const VIEW_CONFIG = {
 
   "entity-select": {
     render: renderEntitySelector
+  },
+
+  "action-prompt": {
+    render: renderActionPrompt
   }
 };
 
@@ -1036,6 +1104,84 @@ function resetNavigation(view, tab) {
   currentView = view;
 }
 
+/* --------- ACTIONS ------------- */
+
+function showActionPrompt(actions, context) {
+  currentActionList = actions;
+  currentActionContext = context;
+
+  pushView();
+  currentView = "action-prompt";
+  renderView();
+}
+
+function renderActionPrompt() {
+  const container = document.getElementById("content");
+
+  const context = currentActionContext;
+
+  // Evaluate conditions
+  const availableActions = currentActionList.filter(a => {
+    return !a.condition || a.condition(context);
+  });
+
+  let html = `
+    <div class="card">
+      <h2>Choose Action</h2>
+
+      <ul>
+  `;
+
+  availableActions.forEach((action, idx) => {
+    html += `
+      <li>
+        <button data-action-index="${idx}">
+          ${action.label}
+        </button>
+      </li>
+    `;
+  });
+
+  html += `
+      </ul>
+
+      <button id="actionCancel">Cancel</button>
+    </div>
+  `;
+
+  container.innerHTML = html;
+
+  // bind actions
+  container.querySelectorAll("[data-action-index]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const index = parseInt(btn.dataset.actionIndex, 10);
+      handleActionSelection(availableActions[index]);
+    });
+  });
+
+  document.getElementById("actionCancel").addEventListener("click", () => {
+    goBack();
+    renderView();
+  });
+}
+
+
+function handleActionSelection(action) {
+  const context = currentActionContext;
+
+  if (action.riskLevel === "warn") {
+    const message = action.warningMessage
+      ? action.warningMessage(context)
+      : "Are you sure?";
+
+    const confirmed = confirm(message);
+
+    if (!confirmed) return;
+  }
+
+  // Execute action
+  action.execute(context);
+}
 
 /* -------- SELECTION ----------- */
 
@@ -1666,20 +1812,106 @@ function toggleQRCode(id) {
 
 /* ---------- SCANNER ---------- */
 
-function handleScanInput() {
-  const raw = document.getElementById("barcodeInput").value;
+function parseID(value) {
+  if (!value || typeof value !== "string") return null;
 
-  if (!raw) return;
+  const parts = value.split("-");
+  if (parts.length < 2) return null;
 
-  const product = findProductByBarcode(raw);
+  const prefix = parts[0];
+  const entityType = PREFIX_TO_ENTITY[prefix];
 
-  if (!product) {
-    alert("No product found for this barcode");
+  if (!entityType) return null;
+
+  return {
+    entityType,
+    id: value
+  };
+}
+
+function handleScan(decodedText, decodedResult) {
+  const format = decodedResult?.result?.format?.formatName;
+
+  const scan = resolveScan(decodedText, format);
+
+  if (!scan) {
+    alert("Unrecognized scan");
     return;
   }
 
-  showInstancesForProduct(product);
+  dispatchScan(scan);
 }
+
+
+function resolveScan(text, format) {
+  const normalized = normalizeBarcode(text);
+
+  // QR handling
+  if (format === "QR_CODE") {
+    const parsed = parseID(text);
+
+    if (parsed) {
+      const resolver = ENTITY_RESOLVERS[parsed.entityType];
+
+      return {
+        type: `QR_${ID_CONFIG[parsed.entityType]}`,
+        id: parsed.id,
+        entityType: parsed.entityType,
+        entity: resolver ? resolver(parsed.id) : null
+      };
+    }
+
+    return { type: "QR_UNKNOWN", raw: text };
+  }
+
+  // UPC handling
+  const product = findProductByBarcode(normalized);
+
+  return {
+    type: "UPC",
+    code: normalized,
+    product: product || null,
+    resolved: !!product
+  };
+}
+
+
+function dispatchScan(scan) {
+  const viewConfig = VIEW_CONFIG[currentView];
+
+  if (!viewConfig?.onScan) return;
+
+  const context = {
+    currentItem,
+    currentView
+  };
+
+  const actions = viewConfig.onScan({
+    ...context,
+    scan
+  }) || [];
+
+  routeScanActions(actions);
+}
+
+
+function routeScanActions(actions) {
+  if (!actions.length) return;
+
+  // optional optimization
+  if (actions.length === 1 && actions[0].riskLevel === "safe") {
+    actions[0].execute();
+    return;
+  }
+
+  // otherwise show prompt
+  showActionPrompt(actions, {});
+}
+
+function onScanSuccess(decodedText, decodedResult) {
+  handleScan(decodedText, decodedResult);
+}
+
 
 let qrScanner = null;
 
@@ -1691,10 +1923,7 @@ function startScanner() {
   qrScanner.start(
     { facingMode: "environment" },
     { fps: 10, qrbox: 250 },
-    (text) => {
-      handleQRCode(text);
-      stopScanner();
-    }
+    onScanSuccess
   );
 }
 
@@ -1705,122 +1934,6 @@ function stopScanner() {
   document.getElementById('scanner-panel').style.display = 'none';
 }
 
-/* ---------- QR HANDLER ---------- */
-
-function handleQRCode(text) {
-  try {
-    const obj = JSON.parse(text);
-
-    if (!obj.id) return;
-
-    const id = obj.id;
-
-    // STORAGE LOCATION
-    if (id.startsWith("SL")) {
-      handleStorageScan(id);
-      return;
-    }
-
-    // FOOD INSTANCE
-    if (id.startsWith("FI")) {
-      handleFoodScan(id);
-      return;
-    }
-
-    // Unknown type
-    alert("Unrecognized QR code");
-
-  } catch {
-    alert("Invalid QR code");
-  }
-}
-
-async function handleFoodScan(foodID) {
-  if (currentView === "storage-item") {
-    if (itemMode !== "view") return;
-
-    const confirmed = confirm("Assign item to this location?");
-    if (!confirmed) return;
-
-    const food = window._foodInstanceCache.find(f => f.InstanceID === foodID);
-
-    const updated = {
-      ...food,
-      StorageLocationID: currentItem.StorageLocationID
-    };
-
-    const changes = getChangedFields(food, updated);
-
-    await updateFoodInstance(foodID, changes);
-
-    alert("Item assigned to Storage Location");
-  }
-}
-
-async function handleStorageScan(storageID) {
-
-  /* --- When in FoodInstance view --- */
-  if (currentView === "food-item") {
-    const currentID = currentItem.StorageLocationID;
-    if (currentID === storageID) return;
-
-    // EDIT MODE → apply immediately
-    if (itemMode === "edit") {
-      currentItem.StorageLocationID = storageID;
-      
-      renderFoodInstanceDetail();
-      setTimeout(() => {
-        document.querySelector("#fld-storageLocation")?.classList.add("highlight");
-      }, 50);
-
-      markDirty();
-      return;
-    }
-
-    // VIEW MODE → confirm + save
-    if (itemMode === "view") {
-      const storage = window._storageMap[storageID];
-      const confirmed = confirm(
-        `Move item to:\n\n${storage?.Label} (${storage?.PhysicalLocation})?\n`
-      );
-
-      if (!confirmed) return;
-
-      // Build updated item (copy)
-      const updated = {
-        ...currentItem,
-        StorageLocationID: storageID
-      };
-
-      const changes = getChangedFields(originalItem, updated);
-
-      try {
-        await updateFoodInstance(currentItem.InstanceID, changes);
-        const idx = window._foodInstanceCache.findIndex(
-          i => i.InstanceID === currentItem.InstanceID
-        );
-
-        if (idx !== -1) {
-          window._foodInstanceCache[idx] = { ...updated };
-        }
-
-        currentItem = updated;
-        originalItem = { ...updated };
-
-        alert("Storage location updated");
-        renderFoodInstanceDetail();
-
-        setTimeout(() => {
-          document.querySelector("#fld-storageLocation")?.classList.add("highlight");
-        }, 50);
-
-        return;
-      } catch (err) {
-        alert("Error updating storage location: " + err.message);
-      }
-    }
-  }
-}
 
 /* -------------- LABELS ------------ */
 

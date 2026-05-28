@@ -89,3 +89,14 @@ const ID_CONFIG = {
   ProductionEvent: "PE"
   // add more types here as needed
 };
+
+const PREFIX_TO_ENTITY = Object.fromEntries(
+  Object.entries(ID_CONFIG).map(([entity, prefix]) => [prefix, entity])
+);
+
+const ENTITY_RESOLVERS = {
+  FoodInstance: findFoodInstance,
+  StorageLocation: findStorageLocation,
+  //FoodInstanceEvent: findFoodInstanceEvent,
+  //ProductionEvent: findProductionEvent
+};
