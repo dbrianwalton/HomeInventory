@@ -281,22 +281,70 @@ body.select-mode .inventory-table tbody tr {
 
 /* ---------- NAV ---------- */
 
-.nav-tabs {
+.nav-tabs-bar {
   display: flex;
-  gap: 0.5rem;
+  border-bottom: 2px solid #d1d5db;
+  margin-bottom: 1rem;
 }
 
-.nav-tabs button {
+.nav-tab {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.35rem 0.6rem;
+  border: 2px solid transparent;
+  border-bottom: none;
+  border-radius: 6px 6px 0 0;
+  margin-bottom: -2px;
+  color: #6b7280;
+  background: #f3f4f6;
+}
+
+.nav-tab.hidden {
+  display: none;
+}
+
+.nav-tab.active {
+  border-color: #d1d5db;
+  border-bottom-color: white;
+  background: white;
+  color: #111827;
+}
+
+.nav-tab button {
   background: none;
-  border: 1px solid #ccc;
-}
-
-.nav-tabs button.active {
-  background: #e5f0ff;
-  border-color: #2563eb;
+  border: none;
+  font-size: inherit;
+  color: inherit;
+  cursor: pointer;
+  padding: 0;
   font-weight: 600;
 }
 
+#listEntitySelector {
+  background: none;
+  border: none;
+  font-size: 0.85em;
+  color: #374151;
+  cursor: pointer;
+  padding: 0;
+  max-width: 9rem;
+}
+
+.tab-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #9ca3af;
+  font-size: 1.1em;
+  line-height: 1;
+  padding: 0 0.1rem;
+}
+
+.tab-close:hover {
+  color: #374151;
+ }
+ 
 /* ---------- TABLE ---------- */
 
 .table-wrapper {

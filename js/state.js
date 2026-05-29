@@ -8,6 +8,7 @@ let isDirty = false;
 let statusVisible = false;
 
 let activeTab = "inventory";
+let currentListEntity = "food"; // "food" | "storage" | "product" | "event"
 
 let navStack = [];
 

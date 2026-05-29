@@ -7,6 +7,8 @@ function renderView() {
   updateFilterVisibility();
 
   config.render();
+
+  renderNavTabs();
 }
 
 
@@ -352,7 +354,9 @@ function showEvents() {
   navStack = [];
   clearSelection();
   activeTab = 'events';
-  renderEventList();
+  currentListEntity = "event";
+  currentView = "list-event";
+  renderView();
 }
 
 function exitToListView() {
@@ -1058,4 +1062,104 @@ function parseDate(value) {
   // ❗ fallback (shouldn’t really hit now)
   const d = new Date(value);
   return isNaN(d) ? 0 : d.getTime();
+}
+
+
+/* ---------- NAV TAB UI ---------- */
+
+function renderNavTabs() {
+  const isListView = currentView.startsWith("list-");
+  // Sub-views (entity-select, action-prompt) are inside the item tab
+  const isItemContext = currentView.startsWith("item-")
+    || currentView === "entity-select"
+    || currentView === "action-prompt";
+
+  // List tab active state
+  const tabList = document.getElementById("tab-list");
+  if (tabList) {
+    tabList.classList.toggle("active", isListView);
+  }
+
+  // Entity selector sync
+  const selector = document.getElementById("listEntitySelector");
+  if (selector) selector.value = currentListEntity;
+
+  // Item tab visibility and label
+  const tabItem = document.getElementById("tab-item");
+  const tabItemBtn = document.getElementById("tab-item-btn");
+  if (tabItem) {
+    if (isItemContext) {
+      tabItem.classList.remove("hidden");
+      tabItem.classList.toggle("active", isItemContext);
+      if (tabItemBtn) tabItemBtn.textContent = getItemTabLabel();
+    } else {
+      tabItem.classList.add("hidden");
+    }
+  }
+}
+
+function getItemTabLabel() {
+  if (!currentItem) return "Item";
+  const id = currentItem.InstanceID
+    || currentItem.StorageLocationID
+    || currentItem.ProductID
+    || "";
+  const label = currentItem.Label || "";
+  if (id && label) return id + " \u2014 " + label;
+  return id || label || "Item";
+}
+
+// Clicking the List tab while on an item: navigate back to the list.
+// Clicking while already on a list: no-op.
+function handleListTabClick() {
+  if (!currentView.startsWith("list-")) {
+    navStack = [];
+    currentItem = null;
+    itemMode = "view";
+    clearDirty();
+    clearSelection();
+    currentView = "list-" + currentListEntity;
+    renderView();
+  }
+}
+
+// Clicking the Item tab while already on an item view: no-op.
+function handleItemTabClick() {
+  // Already on the item — nothing to do.
+  // (Future: could pop back to the top-level item if in a sub-view.)
+}
+
+// × button on the item tab: discard item and return to list.
+function closeItemTab() {
+  navStack = [];
+  currentItem = null;
+  itemMode = "view";
+  clearDirty();
+  clearSelection();
+  currentView = "list-" + currentListEntity;
+  renderView();
+}
+
+// Entity-type selector in the List tab changed.
+function handleEntityChange(value) {
+  currentListEntity = value;
+  navStack = [];
+  currentItem = null;
+  itemMode = "view";
+  clearDirty();
+  clearSelection();
+  currentView = "list-" + value;
+  renderView();
+}
+
+// Stub — replaced in Layer 4 when product list view is built.
+function renderProductList() {
+  document.getElementById("content").innerHTML =
+    '<div class="card"><p>Products list coming soon.</p></div>';
+}
+
+// Stub — replaced when ProductionEvents are implemented.
+function renderProductionEventList() {
+  document.getElementById("content").innerHTML =
+    '<div class="card"><p>Production Events not yet implemented.</p></div>';
 }

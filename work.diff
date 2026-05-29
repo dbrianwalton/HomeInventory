@@ -1,0 +1,23 @@
+--- a/index.html
++++ b/index.html
+@@ -48,9 +48,14 @@
+-  <div class="card nav-tabs">
+-    <button onclick="showInventory()">Inventory</button>
+-    <button onclick="showStorage()">Storage</button>
+-    <button onclick="showEvents()">Events</button>
+-  </div>
++  <div class="nav-tabs-bar">
++    <div id="tab-list" class="nav-tab active">
++      <button id="tab-list-btn" onclick="handleListTabClick()">List</button>
++      <select id="listEntitySelector" onchange="handleEntityChange(this.value)">
++        <option value="food">Food Items</option>
++        <option value="storage">Storage</option>
++        <option value="product">Products</option>
++        <option value="event">Events</option>
++      </select>
++    </div>
++    <div id="tab-item" class="nav-tab hidden">
++      <button id="tab-item-btn" onclick="handleItemTabClick()"></button>
++      <button class="tab-close" onclick="closeItemTab()">&#215;</button>
++    </div>
++  </div>

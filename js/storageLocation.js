@@ -4,6 +4,7 @@ function showStorage() {
   clearSelection();
 
   activeTab = 'storage';
+  currentListEntity = "storage";
   currentView = "list-storage";
   renderView();
 }

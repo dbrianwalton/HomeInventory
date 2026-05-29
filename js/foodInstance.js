@@ -9,12 +9,14 @@ function handleSort(field) {
 
   renderFoodInstanceList();
 }
+
 function showInventory() {
 
   navStack = [];
   clearSelection();
 
   activeTab = 'inventory';
+  currentListEntity = "food";
   currentView = "list-food";
 
   document.getElementById("modeButton").style.display = "block";

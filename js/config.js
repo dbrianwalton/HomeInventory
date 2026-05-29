@@ -280,6 +280,16 @@ const VIEW_CONFIG = {
     render: renderProductDetail
   },
 
+  "list-product": {
+    type: "list",
+    render: renderProductList
+  },
+
+  "list-event": {
+    type: "list",
+    render: renderProductionEventList
+  },
+
   "entity-select": {
     render: renderEntitySelector
   },
