@@ -33,7 +33,12 @@ function goBack() {
       showStorage();
       return;
     }
-    
+
+    if (currentItem?.ProductID?.startsWith("PR")) {
+      showProducts();
+      return;
+    }
+
     showInventory();
     return;
   }
@@ -510,6 +515,15 @@ function hideStatus() {
 }
 
 
+function showProducts() {
+  navStack = [];
+  clearSelection();
+  activeTab = 'products';
+  currentListEntity = "product";
+  currentView = "list-product";
+  renderView();
+}
+
 
 function showEvents() {
   navStack = [];
@@ -525,6 +539,8 @@ function exitToListView() {
     showInventory();
   } else if (currentView === "item-storage") {
     showStorage();
+  } else if (currentView === "item-product") {
+    showProducts();
   }
 }
 
@@ -533,7 +549,9 @@ function exitToListView() {
 function toggleMode() {
 
   // Inventory behavior
-  if (currentView === "list-food" || currentView === "list-storage") {
+  if (currentView === "item-food" ||
+      currentView === "item-storage" ||
+      currentView === "item-product") {
     interactionMode = interactionMode === "browse" ? "select" : "browse";
     document.body.classList.toggle("select-mode", interactionMode === "select");
     clearSelection();
@@ -541,7 +559,9 @@ function toggleMode() {
   }
 
   // Item behavior
-  if (currentView === "item-food" || currentView === "item-storage") {
+  if (currentView === "item-food" ||
+      currentView === "item-storage" ||
+      currentView === "item-product") {
     if (itemMode === "edit" && isDirty) {
 
       const confirmed = confirm(
@@ -564,6 +584,9 @@ function toggleMode() {
         break;
       case "item-storage":
         renderStorageDetail();  // re-render fields
+        break;
+      case "item-product":
+        renderProductDetail();
         break;
     }
     updateModeButton();
@@ -739,8 +762,9 @@ function handleRowClick(event, id) {
       showFoodInstance(id);
     } else if (currentView === "list-storage") {
       showStorageLocation(id);
-    }
-    return;
+    } else if (currentView === "list-product") {
+      showProduct(id);
+    }    return;
   }
   // In select mode, selection is controlled in other ways.  
 }
