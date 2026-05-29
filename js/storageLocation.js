@@ -4,14 +4,14 @@ function showStorage() {
   clearSelection();
 
   activeTab = 'storage';
-  currentView = "storage-list";
+  currentView = "list-storage";
   renderView();
 }
 
 
 function showStorageLocation(id) {
   pushView();
-  currentView = "storage-item";
+  currentView = "item-storage";
 
   const item = window._storageMap[id];
   if (!item) return;
@@ -30,7 +30,7 @@ function showStorageLocation(id) {
 function showStorageUnassigned() {
   pushView();
 
-  currentView = "food-list";
+  currentView = "list-food";
   activeTab = "storage"; // if you use tabs
 
   // ✅ apply filter
@@ -96,7 +96,7 @@ function renderStorageDetail() {
         ${renderDetailActions()}
       </div>
 
-      ${renderDetailForm("storage-item", item)}
+      ${renderDetailForm("item-storage", item)}
 
       <div id="related-food"></div>
     </div>
@@ -128,7 +128,7 @@ function renderStorageDetail() {
 
 
 async function saveStorage() {
-  Object.assign(currentItem, extractFields("storage-item"));
+  Object.assign(currentItem, extractFields("item-storage"));
   currentItem = normalizeItem(currentItem);
 
   const changes = getChangedFields(originalItem, currentItem);

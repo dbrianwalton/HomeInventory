@@ -28,9 +28,9 @@ index.html               — Single-page shell. All panels (settings, labels, ev
 js/state.js              — All mutable global state and simple state-mutating helpers
                            (markDirty, cancelEdit, getChangedFields, etc.)
 js/api.js                — Google Sheets API layer: auth, loaders, creators, updaters.
-js/foodInstance.js       — food-item and food-list view logic, including the events list
+js/foodInstance.js       — item-food and list-food view logic, including the events list
                            and inventory quantity calculation from events.
-js/storageLocation.js    — storage-item and storage-list view logic.
+js/storageLocation.js    — item-storage and list-storage view logic.
 js/filters.js            — Filter bar rendering, chip rendering, filter event binding.
                            Reads VIEW_CONFIG from config.js; writes to inventoryFilter /
                            storageFilter in state.js.
@@ -123,23 +123,39 @@ Camera / handleScanInput()
 ### Per-View Scan Behavior
 
 Each view defines its own `onScan` in VIEW_CONFIG. Actions that depend on `currentItem`
-belong only in detail views (`food-item`, `storage-item`), not in list views.
+belong only in detail views (`item-food`, `item-storage`, `item-product`), not in list views.
 
 | View | QR_FI | QR_SL | UPC resolved | UPC unresolved |
 |---|---|---|---|---|
-| `food-list` | Open Item | Open Storage Location | — | Create Product |
-| `food-item` | Open Item / Transfer (if both inventory) | Assign to Location | Assign Product (if unassigned) | Create Product |
-| `storage-list` | Open Item | Open Storage Location | — | — |
-| `storage-item` | Open Item | — | — | — |
+| `list-food` | Open Item | Open Storage Location | — | Create Product |
+| `item-food` | Open Item / Transfer (if both inventory) | Assign to Location | Assign Product (if unassigned) | Create Product |
+| `list-storage` | Open Item | Open Storage Location | — | — |
+| `item-storage` | Open Item | — | — | — |
+| `list-product` | — | — | — | — |
+| `item-product` | Assign this product to FoodInstance (see below) | — | Link UPC to this product (see below) | Link UPC to this product (new barcode) |
+
+**Scan from `item-product`:**
+
+*QR_FI scan:*
+- If `FoodInstance.ProductID` is empty: `confirm("Assign [ProductName] to [InstanceName]?")` → on confirm, `updateFoodInstance` + cache update. Stay on item-product.
+- If `FoodInstance.ProductID === currentItem.ProductID`: toast "Already assigned."
+- If `FoodInstance.ProductID` is a different product: `confirm("This item already has product [X]. Reassign to [this product]?")` → on confirm, `updateFoodInstance` + cache update.
+
+*UPC scan (resolved — barcode already maps to a product):*
+- If mapped to this product: toast "Already linked."
+- If mapped to a different product: strong `confirm("Barcode [code] is already linked to [OtherProductName]. Reassign to [this product]?")` → on confirm, `updateFoodBarcode` + cache update.
+
+*UPC scan (unresolved — no barcode record exists):*
+- `confirm("Link barcode [code] to [ProductName]?")` → on confirm, `createFoodBarcode` + cache update. Stay on item-product.
 
 ### Product Creation Flow
 
-Entry points: unknown UPC scan from `food-list` or `food-item`. Selector "+ Create" deferred.
+Entry points: unknown UPC scan from `list-food` or `item-food`. Selector "+ Create" deferred.
 
 `openCreateProduct(context)` is called while in `action-prompt` view. Because
-`showActionPrompt` already called `pushView()` to save the calling view (food-item or
-food-list) onto navStack, `openCreateProduct` does NOT call `pushView()` again — it
-sets `currentView = "product-item"` directly. The context `{ source, barcode, currentItem }`
+`showActionPrompt` already called `pushView()` to save the calling view (item-food or
+list-food) onto navStack, `openCreateProduct` does NOT call `pushView()` again — it
+sets `currentView = "item-product"` directly. The context `{ source, barcode, currentItem }`
 is stored in `currentItem._createContext` for `saveProduct()` to use.
 
 **On save (`saveProduct()`):**
@@ -147,35 +163,10 @@ is stored in `currentItem._createContext` for `saveProduct()` to use.
 2. If `context.barcode`: `createFoodBarcode()` — links barcode to new product
 3. If `context.currentItem`: update server + cache + `updatePreviousViewItem` to set
    `ProductID` on the navStack snapshot, then `goBack()` + `renderView()` — returns to
-   food-item with product already assigned
-4. If no `currentItem`: `goBack()` + `renderView()` — returns to food-list
+   item-food with product already assigned
+4. If no `currentItem`: `goBack()` + `renderView()` — returns to list-food
 
 **Cancel:** `goBack()` → returns to calling view with no changes.
-
----
-
-## QR Code Format
-
-**IMPORTANT:** QR codes are stored as JSON objects, not plain ID strings.
-
-`"id"` is the canonical key for all entity types. The entity type is determined
-by parsing the ID prefix (FI-, SL-, etc.) — there is no separate key per entity type.
-
-Label generator (`LABEL_CONFIG.buildQR`) encodes:
-- Food instances: `{"id": "FI-00001"}`
-- Storage locations: `{"id": "SL-00001"}`
-
-`toggleQRCode` (inline QR in UI) encodes:
-- `{"appID": "BTM-Inventory", "id": "FI-00001"}`
-
-**`resolveScan` must parse JSON first, extract `envelope.id`, then call `parseID`.**
-Fall back to treating raw text as a plain ID if JSON.parse fails (backward compat).
-The JSON wrapper is intentional: it allows richer QR payloads in the future while
-keeping the ID lookup logic unchanged.
-
-**Note:** Food instance labels are in use in the field. Storage location labels have not
-yet been printed, so `{"id": ...}` was established as the uniform format before any
-storage labels were produced.
 
 ---
 
@@ -258,29 +249,14 @@ before writing. This is safe but slow — acceptable for current scale.
 
 ---
 
-## Auth Model
-
-Uses Google Identity Services (GIS) `initTokenClient` with implicit/token flow.
-- Tries silent token first (`prompt: ""`); falls back to consent prompt.
-- `accessToken` is an in-memory variable; expires after ~1 hour (GIS handles refresh on
-  next operation if the page is still open, but a full reload re-auths cleanly).
-- The OAuth client ID is public (embedded in source) — this is correct and expected for
-  browser-only OAuth.
-- Each user supplies their own Sheet ID. The app never touches any sheet except the one
-  the user configured.
-- Sharing the app with others: they authorize against their own Google account, use their
-  own Sheet. The consent screen will show the developer's Google Cloud project name.
-
----
-
 ## Current Implementation Status
 
 ### Working
 - Full CRUD for FoodInstances and StorageLocations
 - FoodInstanceEvent creation (ADD / REMOVE / INVENTORY)
 - Inventory quantity computation with INVENTORY event anchoring
-- Product and FoodBarcode creation (API layer + product-item add form complete)
-- Product creation flow: unknown UPC scan → product-item form → save creates Product + FoodBarcode + optionally assigns to FoodInstance
+- Product and FoodBarcode creation (API layer + item-product add form complete)
+- Product creation flow: unknown UPC scan → item-product form → save creates Product + FoodBarcode + optionally assigns to FoodInstance
 - QR scanner (html5-qrcode), UPC scanning
 - Scan dispatch + action prompt system
 - CONFIG-driven field rendering, entity selector, form validation
@@ -291,122 +267,106 @@ Uses Google Identity Services (GIS) `initTokenClient` with implicit/token flow.
 
 ### Missing / Stubbed (as of session 2026-05-28)
 - `startTransfer(source, target)` — lower priority, stubbed
-- Product-item edit/view mode (add mode works; view/edit of existing products deferred)
-- Product-list view (no browse entry point exists yet)
-- Navigation/tab UI redesign (see roadmap below)
+- Product-item edit/view mode (add mode works; view/edit of existing products — in progress)
+- Product-list view (in progress)
+- Navigation/tab UI redesign (in progress — see below)
 - ProductionEvents + PreparedFood data model and UI (see roadmap below)
 
 ### Scanner UX — Debounce + Canvas Overlay
 
-`onScanSuccess` fires every frame a code is in view (~10×/sec). Two enhancements:
-
-1. **Barcode format support:** `Html5Qrcode` constructor takes `{ formatsToSupport: [...] }` using
-   `Html5QrcodeSupportedFormats` enum. Include QR_CODE, UPC_A, UPC_E, EAN_13, EAN_8, CODE_128.
-
-2. **Debounce:** Three scanner state variables track debounce: `_scanLastCode`, `_scanDebounceTimer`,
-   `_scanCooldownUntil`. On first detection of a new code, show detected text in `#scanner-status`
-   and start a 600ms timer. If the same code is still seen when the timer fires, call `handleScan`.
-   After firing, impose a 2-second cooldown before the same code can fire again. Different code resets
-   immediately.
-
-3. **Canvas overlay:** A `<canvas id="scanner-overlay">` is absolutely positioned over `#qr-reader`.
-   `drawScanHighlight(location, formatName)` draws a green polygon each frame using
-   `decodedResult.result.location` corner points, scaled from camera resolution to display size via
-   `video.clientWidth / video.videoWidth`. Canvas is cleared in `stopScanner()`.
-
-4. **`stopScanner()`** clears `_scanDebounceTimer` and resets `_scanLastCode` / `_scanCooldownUntil`.
-
-HTML: `#scanner-panel` wraps a `position:relative` container holding `#qr-reader` and the overlay
-canvas, plus a `#scanner-status` text div below.
-
-### Scanner Action Modes — Navigate vs. Repeat
-
-The scanner panel covers the full interface. This drives the close/reopen model:
-
-**`stopScanner()` is always called inside `routeScanActions` before any action fires** — whether
-auto-executing a single safe action or routing to the action-prompt. The camera is never kept open
-while the action-prompt is visible.
-
-Each action object declares `scanMode: "navigate" | "repeat"` (all current actions are `"navigate"`).
-
-- **Navigate mode**: camera closes, user lands in a new view. No special handling needed after close.
-- **Repeat mode**: camera closes for any action-prompt, then the action's `execute()` function is
-  responsible for reopening the scanner (via `startScanner()`) after setting up the session context.
-  `handleActionSelection` does NOT reopen the camera — that is the execute function's responsibility.
-
-`scanMode` is available as a signal for UI labeling (e.g. action-prompt could style repeat-mode
-buttons differently) but it is NOT used as routing logic — the close is always unconditional.
-
-### Repeat-Scan Sessions — Roadmap (not yet implemented)
-
-Two repeat-scan session types are planned, both anchored to a storage location:
-
-**`inventory-check`**: User scans each FoodInstance QR in a physical storage tub to verify contents.
-Items in the storage location's cache are shown as a checklist. Scanning an item checks it off.
-Items without QR labels can be tapped manually on the checklist.
-
-**`assign-items`**: User scans multiple FoodInstance QR codes to assign them all to the current
-storage location in bulk.
-
-**Entry points (two paths):**
-
-1. **Camera arrival** — scanning a storage location QR presents an action-prompt:
-   `[ View Storage | Inventory Check | Assign Items ]`.
-   "View Storage" is navigate mode. The other two are repeat mode and reopen the scanner after
-   navigating to storage-item.
-
-2. **Manual arrival** — buttons on the storage-item detail view launch the same sessions directly,
-   opening the scanner in repeat mode without requiring an initial QR scan.
-
-**Session state** (to be added to state.js when implemented):
-```js
-let repeatScanSession = null;
-// active session shape:
-// { type: "inventory-check"|"assign-items", storageLocationID, processedItems: Set }
-```
-
-While a session is active, `storage-item` renders a session UI overlay (checklist + Done button).
-Ending the session clears `repeatScanSession` and stops the scanner.
-
-### Navigation / Tab UI Redesign — Roadmap
-
-Current nav uses plain buttons (Inventory / Storage / Events). Design goals:
-
-1. **Visual tabs** — restyle the nav bar to look like real tabs (CSS: active tab elevated,
-   border-bottom removed on active, matching background to content area).
-
-2. **Unified list view with record-type selector** — rather than separate list views per entity
-   type, a single list panel with a dropdown (or tab-within-tab) to switch between:
-   Inventory | Storage | Products | Production Events
-   The selected type drives which VIEW_CONFIG list renderer is used and which filters appear.
-   Individual items are still navigated to via their own detail views.
-
-3. **Items remain navigable from both list and from related items** — e.g. a FoodInstance can
-   be reached from the inventory list or from a PreparedFood detail; a Product can be reached
-   from product list or from a FoodInstance field.
-
-This redesign should be done before adding ProductionEvents to avoid retrofitting nav twice.
+Details in a second file. Request if details needed.
 
 ---
 
-### Product View/Edit — Roadmap
+### Navigation / Tab UI Redesign
 
-**What needs to be built:**
-- `renderProductDetail` must respect `itemMode` (view/edit/add) using the same pattern as
-  `renderFoodInstanceDetail` and `renderStorageDetail`.
-- `saveProduct` needs an edit branch (currently only handles "add").
-- `updateProduct(id, changes)` needs to be added to `api.js` (parallel to `updateFoodInstance`).
-- A `"product-list"` entry in VIEW_CONFIG with text filter, navigates to `product-item`.
+**Status: in progress (session 2026-05-28)**
+
+#### View naming convention
+
+All view keys use two-segment kebab: `{mode}-{entity}`.
+
+```
+list-food      list-storage   list-product   list-event
+item-food      item-storage   item-product   item-event
+```
+
+Old names (`list-food`, `item-food`, `list-storage`, `item-storage`) are replaced
+globally (VIEW_CONFIG keys, all push/set-currentView call sites, navStack references).
+
+#### Tab model
+
+Two visual tabs in the nav bar:
+
+1. **List tab** — always present. Shows a unified list panel. An entity-type selector
+   (segment control or dropdown) at the top switches between:
+   `FoodInstance | StorageLocation | Product | ProductionEvent`
+   Switching the selector updates `currentView` to the corresponding `list-*` key and
+   re-renders the filter bar and table. The selector choice is persisted in a state
+   variable (`currentListEntity`).
+
+2. **Item tab** — appears only when an item is open (navStack depth ≥ 1 from a list view).
+   Label shows entity type and a short identifier (e.g. "FI-00042" or "Oats"). An × button
+   on the item tab calls `goBack()` all the way to the list (clears navStack to list depth).
+   Sub-views (entity-select, action-prompt, item-product create flow) do NOT create a new
+   tab — they render inside the item tab slot using the existing navStack push/pop pattern.
+
+Clicking the List tab while an item is open: navigates back to the list (equivalent to ×
+on item tab). The list restores to the same entity type and scroll position.
+
+#### CSS approach
+
+- Active tab: elevated appearance, border-bottom removed, background matches content area.
+- Inactive tab: slightly recessed, muted color.
+- Item tab only rendered when `navStack.length > 0` (or `currentView` is an `item-*` view).
+
+---
+
+### Product List and Item Views
+
+**Status: in progress (session 2026-05-28)**
+
+#### `list-product` view
+
+Rendered by `renderProductList` (new function in `js/product.js` or `js/render.js`).
+Uses `renderTable` with columns derived from all Product fields plus two computed columns
+appended to each row object before the table call:
+
+- `_instanceCount` — `_foodInstanceCache.filter(i => i.ProductID === row.ProductID).length`
+- `_barcodeCount` — `_barcodeCache.filter(b => b.ProductID === row.ProductID).length`
+
+Column headers: "Items", "Barcodes". Clicking a row navigates to `item-product`.
+
+Filter: text filter on Name, Brand fields (same pattern as food/storage list filters).
+
+#### `item-product` view
+
+`renderProductDetail` respects `itemMode` (`view` / `edit` / `add`) using the same
+pattern as `renderFoodInstanceDetail`:
+- **view**: read-only field display + Edit button + two sub-tables (see below)
+- **edit**: editable fields + Save/Cancel buttons + inline warning (see edit guardrails)
+- **add**: existing behavior (create new product, optionally link barcode + food instance)
+
+`saveProduct` gains an edit branch that calls `updateProduct(id, changes)` (new in api.js,
+parallel to `updateFoodInstance`).
 
 **Edit guardrails:**
-When saving edits to a Product, count associated records before writing:
-- `linkedInstances` = `_foodInstanceCache.filter(i => i.ProductID === id).length`
-- `linkedBarcodes` = `_barcodeCache.filter(b => b.ProductID === id).length`
+- On entering edit mode: compute `linkedInstances` and `linkedBarcodes` counts.
+  If either > 0, render an inline warning banner at top of form:
+  `"Warning: [N] food items and [M] barcodes are linked to this product."`
+- On Save: if either count > 0, `confirm("[N] food items and [M] UPC codes linked. Save changes?")`.
+  Only proceed on confirm.
 
-If either count > 0, show a confirm dialog:
-`"[N] food items and [M] UPC codes are linked to this product. Save changes anyway?"`
+#### Sub-tables in view mode
 
-User must confirm before the update proceeds.
+Below the detail form, a two-tab toggle: `[Food Items (N)] [Barcodes (M)]`.
+Only one sub-table visible at a time (CSS toggle, no re-render needed).
+
+- **Food Items tab**: table of FoodInstances where `ProductID === currentItem.ProductID`.
+  Columns: InstanceID, Name, StorageLocation, Quantity (if inventory model). Rows are
+  tappable → `pushView()` + navigate to `item-food`.
+- **Barcodes tab**: table of FoodBarcodes where `ProductID === currentItem.ProductID`.
+  Columns: BarcodeID, Barcode (UPC), notes if any. Read-only display.
 
 ---
 
@@ -424,50 +384,7 @@ ProcessingEvent (one per batch run)
        └─ FoodInstance (one per output package / container)
 ```
 
-**`ProcessingEvents` sheet** — batch-level record:
-| Field | Notes |
-|---|---|
-| EventID (PE-xxxxx) | primary key |
-| EventType | freeze-dry \| home-can \| dehydrate \| freeze |
-| Date | processing date |
-| Description | short label for the run |
-| Notes | free text |
-| *Type-specific fields (sparse)* | see below |
-
-Type-specific columns (unused cells left blank):
-- **freeze-dry**: PreFreeze, FreezeTemp, FreezeTime, DryTemp, DryTime
-- **home-can**: CanMethod (water-bath \| pressure), Pressure, ProcessTime
-- **dehydrate**: DehydrateTemp, DehydrateTime
-- **freeze**: FreezeTemp
-
-**`PreparedFoods` sheet** — per-food-type record within a batch:
-| Field | Notes |
-|---|---|
-| PreparedFoodID (PF-xxxxx) | primary key |
-| ProcessingEventID | FK → ProcessingEvents |
-| Description | food type name (e.g. "Blueberries") |
-| PrepNotes | preparation details specific to this food |
-| PrepMethod | optional (e.g. sliced, blanched) |
-
-**FoodInstance** gains an optional `PreparedFoodID` FK field pointing to its PreparedFood record.
-(Replaces any direct link to ProcessingEvent — instances link to PreparedFood, which links to
-ProcessingEvent.)
-
-**UX:** ProcessingEvent detail shows all PreparedFoods for that run; PreparedFood detail shows
-all linked FoodInstances. From a FoodInstance, the PreparedFood and its parent ProcessingEvent
-are navigable as related items.
-
-**ID_CONFIG additions needed:**
-```js
-PreparedFood: "PF"
-// ProcessingEvent already has ProductionEvent: "PE" — rename key to ProcessingEvent: "PE"
-```
-
-**New sheets needed:** ProcessingEvents, PreparedFoods
-(FoodInstances sheet gains a PreparedFoodID column)
-
-This feature should be built after the navigation redesign and product view/edit are complete.
-
+Details are saved in a separate file. Request if needed.
 ---
 
 ### Known Tech Debt
@@ -507,8 +424,13 @@ new conventions, or roadmap changes. Trigger phrase: natural language confirmati
 as "go ahead", "implement", or "make the changes" moves us to Stage 2 first.
 If CLAUDE.md looks wrong after writing it down, that's a signal to return to Stage 1.
 
-**Stage 3 — Implementation**
-Code changes, guided by what is now recorded in CLAUDE.md. One confirmation covers the
-full agreed plan. However, if a change is large (touches multiple files non-trivially,
-or produces a diff too large to review quickly in one pass), break it into layers and
-pause for review between each layer before continuing.
+**Stage 3 — Implementation (Diffs)**
+Rather than editing files directly, produce unified diffs (`diff -u` format) for the
+human to review and apply. If a change is large, break it into layers (one diff per file
+or logical unit) and pause for review between each layer before continuing.
+
+Diff format rules:
+- Use standard unified diff (`--- a/path`, `+++ b/path`, `@@ ... @@` hunks)
+- Include enough context lines (≥3) for unambiguous application
+- One diff block per file changed
+- After all diffs for a layer are shown, wait for explicit approval before producing the next layer

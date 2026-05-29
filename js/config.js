@@ -1,7 +1,7 @@
 /* ------- CONFIGS --------- */
 
 const VIEW_CONFIG = {
-  "food-list": {
+  "list-food": {
     type: "list",
     render: renderFoodInstanceList,
 
@@ -89,7 +89,7 @@ const VIEW_CONFIG = {
     },
 
     onScan: ({ scan }) => {
-      // List view: navigation only. currentItem-dependent actions live in food-item.
+      // List view: navigation only. currentItem-dependent actions live in item-food.
       if (scan.type === "QR_FI") {
         return [
           {
@@ -131,7 +131,7 @@ const VIEW_CONFIG = {
     }
   },
 
-  "storage-list": {
+  "list-storage": {
     type: "list",
     render: renderStorageList,
 
@@ -183,7 +183,7 @@ const VIEW_CONFIG = {
     }
   },
 
-  "food-item": {
+  "item-food": {
     type: "detail",
     render: renderFoodInstanceDetail,
 
@@ -255,7 +255,7 @@ const VIEW_CONFIG = {
     }
   },
 
-  "storage-item": {
+  "item-storage": {
     type: "detail",
     render: renderStorageDetail,
 
@@ -275,7 +275,7 @@ const VIEW_CONFIG = {
     }
   },
 
-  "product-item": {
+  "item-product": {
     type: "detail",
     render: renderProductDetail
   },
@@ -290,7 +290,7 @@ const VIEW_CONFIG = {
 };
 
 const LABEL_CONFIG = {
-  "food-list": {
+  "list-food": {
     getItems: () =>
       window._foodInstanceCache.filter(i => selectedItems.has(i.InstanceID)),
 
@@ -308,7 +308,7 @@ const LABEL_CONFIG = {
     ]
   },
 
-  "storage-list": {
+  "list-storage": {
     getItems: () =>
       window._storageLocationCache.filter(s => selectedItems.has(s.StorageLocationID)),
 
@@ -327,7 +327,7 @@ const LABEL_CONFIG = {
 
 
 const ENTITY_FIELDS = {
-  "food-item": [
+  "item-food": [
     { key: "Model", label: "Model",
       type: "select",
       options: ["unit", "inventory"],
@@ -365,13 +365,13 @@ const ENTITY_FIELDS = {
     { key: "StorageLocationID", label: "Storage Location", type: "storage-select" }
   ],
 
-  "storage-item": [
+  "item-storage": [
     { key: "Label", label: "Label", type: "text" },
     { key: "Notes", label: "Notes", type: "text" },
     { key: "PhysicalLocation", label: "Physical Location", type: "text" }
   ],
 
-  "product-item": [
+  "item-product": [
     { key: "Label", label: "Label", type: "text" },
     { key: "Size",  label: "Size",  type: "text" }
   ]

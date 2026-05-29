@@ -1,4 +1,4 @@
-let currentView = "food-list"; // "inventory" | "item"
+let currentView = "list-food"; // "inventory" | "item"
 let currentItem = null;
 let originalItem = null;
 
@@ -70,10 +70,10 @@ function enterEditMode() {
   clearDirty();
   updateModeButton();
   switch (currentView) {
-    case "food-item":
+    case "item-food":
       renderFoodInstanceDetail();
       break;
-    case "storage-item":
+    case "item-storage":
       renderStorageDetail();
       break;
   }
@@ -101,12 +101,12 @@ function cancelEdit() {
   // reload original
   let original;
   switch (currentView) {
-    case "food-item":
+    case "item-food":
       original = window._foodInstanceCache.find(i => i.InstanceID === currentItem.InstanceID);
       currentItem = { ...original };
       renderFoodInstanceDetail();
       break;
-    case "storage-item":
+    case "item-storage":
       original = window._storageLocationCache.find(i => i.StorageLocationID === currentItem.StorageLocationID);
       currentItem = { ...original };
       renderStorageDetail();

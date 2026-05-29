@@ -15,7 +15,7 @@ function showInventory() {
   clearSelection();
 
   activeTab = 'inventory';
-  currentView = "food-list";
+  currentView = "list-food";
 
   document.getElementById("modeButton").style.display = "block";
   
@@ -25,7 +25,7 @@ function showInventory() {
 
 function showFoodInstance(id) {
   pushView();
-  currentView = "food-item";
+  currentView = "item-food";
 
   document.getElementById("modeButton").style.display = "block";
 
@@ -227,7 +227,7 @@ function renderFoodInstanceDetail() {
         ${renderDetailActions()}
       </div>
 
-      ${renderDetailForm("food-item", item)}
+      ${renderDetailForm("item-food", item)}
 
       <div id="event-table-container"></div>
     </div>
@@ -323,7 +323,7 @@ function renderEventTable(instanceID) {
 function addFoodInstance() {
   pushView();
 
-  currentView = "food-item";
+  currentView = "item-food";
   itemMode = "add";
 
   currentItem = createEmptyFoodInstance();
@@ -359,7 +359,7 @@ function createInstanceFromProduct(productID) {
     currentItem.Label = product.Label;
   }
 
-  currentView = "food-item";
+  currentView = "item-food";
   itemMode = "add";
 
   renderView();
@@ -371,7 +371,7 @@ function createInstanceFromProduct(productID) {
 async function saveFoodInstance(mode = "close") {
   if (itemMode === "add") {
 
-    Object.assign(currentItem, extractFields("food-item"));
+    Object.assign(currentItem, extractFields("item-food"));
     currentItem = normalizeItem(currentItem);
 
     // Create item and capture returned object and update cache
@@ -411,7 +411,7 @@ async function saveFoodInstance(mode = "close") {
     return;
   }
 
-  Object.assign(currentItem, extractFields("food-item"));
+  Object.assign(currentItem, extractFields("item-food"));
   currentItem = normalizeItem(currentItem);
 
   const changes = getChangedFields(originalItem, currentItem);

@@ -139,7 +139,7 @@ function handleScanInput() {
 /* ---------- SCAN-TRIGGERED MUTATIONS ---------- */
 
 // Assigns a storage location to a food instance.
-// Called from VIEW_CONFIG onScan when a QR_SL is scanned in the food-item view.
+// Called from VIEW_CONFIG onScan when a QR_SL is scanned in the item-food view.
 async function assignLocation(item, locationId) {
   try {
     await updateFoodInstance(item.InstanceID, { StorageLocationID: locationId });
@@ -159,7 +159,7 @@ async function assignLocation(item, locationId) {
 }
 
 // Assigns a product to a food instance.
-// Called from VIEW_CONFIG onScan when a known UPC is scanned in the food-item view.
+// Called from VIEW_CONFIG onScan when a known UPC is scanned in the item-food view.
 async function assignProduct(item, product) {
   try {
     await updateFoodInstance(item.InstanceID, { ProductID: product.ProductID });
@@ -182,10 +182,10 @@ async function assignProduct(item, product) {
 
 // Opens the product-creation flow. Entry points: unknown UPC scan.
 // Called while currentView === "action-prompt", which already pushed the calling view
-// (food-item or food-list) onto navStack via showActionPrompt. We navigate directly to
-// product-item without an additional pushView() so goBack() returns to the right place.
+// (item-food or list-food) onto navStack via showActionPrompt. We navigate directly to
+// item-product without an additional pushView() so goBack() returns to the right place.
 function openCreateProduct(context) {
-  currentView = "product-item";
+  currentView = "item-product";
   itemMode = "add";
   currentItem = {
     Label: "",

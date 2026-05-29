@@ -166,7 +166,7 @@ function renderProductDetail() {
       <div style="margin-top: 1rem;">
         ${renderDetailActions()}
       </div>
-      ${renderDetailForm("product-item", item)}
+      ${renderDetailForm("item-product", item)}
     </div>
   `;
 
@@ -178,7 +178,7 @@ function renderProductDetail() {
 async function saveProduct() {
   const context = currentItem._createContext || {};
 
-  Object.assign(currentItem, extractFields("product-item"));
+  Object.assign(currentItem, extractFields("item-product"));
 
   if (!currentItem.Label) {
     alert("Label is required");
@@ -199,7 +199,7 @@ async function saveProduct() {
       });
     }
 
-    // Assign to the originating food item if the scan came from food-item view
+    // Assign to the originating food item if the scan came from item-food view
     if (context.currentItem) {
       await updateFoodInstance(context.currentItem.InstanceID, {
         ProductID: newProduct.ProductID
@@ -356,9 +356,9 @@ function showEvents() {
 }
 
 function exitToListView() {
-  if (currentView === "food-item") {
+  if (currentView === "item-food") {
     showInventory();
-  } else if (currentView === "storage-item") {
+  } else if (currentView === "item-storage") {
     showStorage();
   }
 }
@@ -368,7 +368,7 @@ function exitToListView() {
 function toggleMode() {
 
   // Inventory behavior
-  if (currentView === "food-list" || currentView === "storage-list") {
+  if (currentView === "list-food" || currentView === "list-storage") {
     interactionMode = interactionMode === "browse" ? "select" : "browse";
     document.body.classList.toggle("select-mode", interactionMode === "select");
     clearSelection();
@@ -376,7 +376,7 @@ function toggleMode() {
   }
 
   // Item behavior
-  if (currentView === "food-item" || currentView === "storage-item") {
+  if (currentView === "item-food" || currentView === "item-storage") {
     if (itemMode === "edit" && isDirty) {
 
       const confirmed = confirm(
@@ -394,10 +394,10 @@ function toggleMode() {
     itemMode = itemMode === "view" ? "edit" : "view";
 
     switch (currentView) {
-      case "food-item":
+      case "item-food":
         renderFoodInstanceDetail();  // re-render fields
         break;
-      case "storage-item":
+      case "item-storage":
         renderStorageDetail();  // re-render fields
         break;
     }
@@ -414,11 +414,11 @@ function updateModeButton() {
     return;
   }
 
-  if (currentView === "food-list" || currentView === "storage-list") {
+  if (currentView === "list-food" || currentView === "list-storage") {
     btn.textContent = interactionMode === "select" ? "✅" : "🔍";
   }
 
-  if (currentView === "food-item" || currentView === "storage-item" || currentView === "product-item") {
+  if (currentView === "item-food" || currentView === "item-storage" || currentView === "item-product") {
     btn.textContent = itemMode === "edit" ? "✏️" : "👁️";
   }
 }
@@ -570,9 +570,9 @@ document.addEventListener("mouseup", resetDragState);
 
 function handleRowClick(event, id) {
   if (interactionMode === "browse") {
-    if (currentView === "food-list") {
+    if (currentView === "list-food") {
       showFoodInstance(id);
-    } else if (currentView === "storage-list") {
+    } else if (currentView === "list-storage") {
       showStorageLocation(id);
     }
     return;
@@ -955,7 +955,7 @@ function bindDetailEvents() {
       const id = el.dataset.storageLink;
 
       if (!id) {
-        resetNavigation("food-list", "inventory");
+        resetNavigation("list-food", "inventory");
         inventoryFilter.storageScope = "UNASSIGNED";
         renderView();
         return;
@@ -989,17 +989,17 @@ function bindDetailEvents() {
           break;
 
         case "save":
-          if (currentView === "food-item") {
+          if (currentView === "item-food") {
             saveFoodInstance();
-          } else if (currentView === "storage-item") {
+          } else if (currentView === "item-storage") {
             saveStorage();
-          } else if (currentView === "product-item") {
+          } else if (currentView === "item-product") {
             saveProduct();
           }
           break;
 
         case "save-close":
-          if (currentView === "product-item") {
+          if (currentView === "item-product") {
             saveProduct();
           } else {
             saveFoodInstance("close");
@@ -1007,7 +1007,7 @@ function bindDetailEvents() {
           break;
 
         case "save-add":
-          if (currentView === "product-item") {
+          if (currentView === "item-product") {
             saveProduct();
           } else {
             saveFoodInstance("addAnother");
