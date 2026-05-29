@@ -36,7 +36,8 @@ js/filters.js            — Filter bar rendering, chip rendering, filter event 
                            storageFilter in state.js.
 js/render.js             — Generic view functions and utilities: renderDetailForm,
                            renderField, extractFields, entity selector, action prompt,
-                           renderView dispatcher, and other shared render helpers.
+                           renderView dispatcher, nav tab UI, product list/item/scan
+                           handlers, and other shared render helpers.
 js/scanner.js            — Camera/scanner setup, scan debounce, canvas overlay,
                            handleScan / resolveScan / dispatchScan / routeScanActions.
 js/labels.js             — Label PDF generation (generateLabelsPDF, buildQR helpers).
@@ -244,8 +245,9 @@ All API calls use Bearer token auth (`accessToken` in api.js).
 - **Append:** `POST .../values/{range}:append?valueInputOption=USER_ENTERED`
 - **Update row:** `PUT .../values/{range}?valueInputOption=USER_ENTERED`
 
-`updateFoodInstance` and `updateStorageLocation` re-fetch the sheet to find the row index
-before writing. This is safe but slow — acceptable for current scale.
+`updateFoodInstance`, `updateStorageLocation`, `updateProduct`, and `updateFoodBarcode`
+all re-fetch their sheet to find the row index before writing. Safe but slow — acceptable
+for current scale.
 
 ---
 
@@ -255,21 +257,27 @@ before writing. This is safe but slow — acceptable for current scale.
 - Full CRUD for FoodInstances and StorageLocations
 - FoodInstanceEvent creation (ADD / REMOVE / INVENTORY)
 - Inventory quantity computation with INVENTORY event anchoring
-- Product and FoodBarcode creation (API layer + item-product add form complete)
-- Product creation flow: unknown UPC scan → item-product form → save creates Product + FoodBarcode + optionally assigns to FoodInstance
+- Full product CRUD: list view with computed counts, item view with view/edit/add modes,
+  edit guardrails (inline warning + confirm), sub-tables (linked FoodInstances + Barcodes)
+- Product creation flow: unknown UPC scan → item-product form → save creates Product +
+  FoodBarcode + optionally assigns to FoodInstance
+- Scan from item-product: QR_FI assigns/reassigns product to instance; UPC creates or
+  reassigns barcode mapping
+- Two-tab navigation UI: List tab (with entity-type selector) + Item tab (with × close)
+- View naming convention: `list-{entity}` / `item-{entity}` throughout
+- `showInventory()` / `showStorage()` / `showProducts()` as parallel top-level nav functions
+- `goBack()` fallback dispatches to the correct show* function based on currentItem type
 - QR scanner (html5-qrcode), UPC scanning
 - Scan dispatch + action prompt system
 - CONFIG-driven field rendering, entity selector, form validation
 - Label PDF generation (jsPDF + QRCode.js), 2×4 10-up layout
-- Filter bar (text, date range, storage scope), filter chips
+- Filter bar (text, date range, storage scope), filter chips; product list has text filter
 - Select mode with drag-to-select, label printing from selection
 - PWA manifest (installable)
 
 ### Missing / Stubbed (as of session 2026-05-28)
 - `startTransfer(source, target)` — lower priority, stubbed
-- Product-item edit/view mode (add mode works; view/edit of existing products — in progress)
-- Product-list view (in progress)
-- Navigation/tab UI redesign (in progress — see below)
+- `list-event` / `item-event` — stub shown; awaits ProductionEvents implementation
 - ProductionEvents + PreparedFood data model and UI (see roadmap below)
 
 ### Scanner UX — Debounce + Canvas Overlay
@@ -278,95 +286,81 @@ Details in a second file. Request if details needed.
 
 ---
 
-### Navigation / Tab UI Redesign
+### Navigation / Tab UI
 
-**Status: in progress (session 2026-05-28)**
+**Status: complete (session 2026-05-28)**
 
 #### View naming convention
 
 All view keys use two-segment kebab: `{mode}-{entity}`.
 
 ```
-list-food      list-storage   list-product   list-event
-item-food      item-storage   item-product   item-event
+list-food      list-storage   list-product   list-event (stub)
+item-food      item-storage   item-product   item-event (stub)
 ```
-
-Old names (`list-food`, `item-food`, `list-storage`, `item-storage`) are replaced
-globally (VIEW_CONFIG keys, all push/set-currentView call sites, navStack references).
 
 #### Tab model
 
 Two visual tabs in the nav bar:
 
-1. **List tab** — always present. Shows a unified list panel. An entity-type selector
-   (segment control or dropdown) at the top switches between:
-   `FoodInstance | StorageLocation | Product | ProductionEvent`
-   Switching the selector updates `currentView` to the corresponding `list-*` key and
-   re-renders the filter bar and table. The selector choice is persisted in a state
-   variable (`currentListEntity`).
+1. **List tab** — always present. A `<select>` dropdown in the tab switches `currentListEntity`
+   between `food | storage | product | event`, setting `currentView = "list-{entity}"` and
+   calling `renderView()`. State variable: `currentListEntity` (state.js).
 
-2. **Item tab** — appears only when an item is open (navStack depth ≥ 1 from a list view).
-   Label shows entity type and a short identifier (e.g. "FI-00042" or "Oats"). An × button
-   on the item tab calls `goBack()` all the way to the list (clears navStack to list depth).
-   Sub-views (entity-select, action-prompt, item-product create flow) do NOT create a new
-   tab — they render inside the item tab slot using the existing navStack push/pop pattern.
+2. **Item tab** — visible only when `currentView` is `item-*`, `entity-select`, or
+   `action-prompt`. Label shows the current item's ID + Label. An × button calls
+   `closeItemTab()` which clears navStack and returns to the list.
 
-Clicking the List tab while an item is open: navigates back to the list (equivalent to ×
-on item tab). The list restores to the same entity type and scroll position.
+#### Top-level navigation functions (parallel pattern)
 
-#### CSS approach
+```js
+showInventory()   // sets currentListEntity="food",    currentView="list-food"
+showStorage()     // sets currentListEntity="storage", currentView="list-storage"
+showProducts()    // sets currentListEntity="product", currentView="list-product"
+```
 
-- Active tab: elevated appearance, border-bottom removed, background matches content area.
-- Inactive tab: slightly recessed, muted color.
-- Item tab only rendered when `navStack.length > 0` (or `currentView` is an `item-*` view).
+All three clear navStack and selection, set activeTab, and call `renderView()`.
+
+`goBack()` fallback (empty navStack) dispatches to the correct show* based on `currentItem`:
+- `InstanceID.startsWith("FI")` → `showInventory()`
+- `StorageLocationID.startsWith("SL")` → `showStorage()`
+- `ProductID.startsWith("PR")` → `showProducts()`
+- default → `showInventory()`
 
 ---
 
 ### Product List and Item Views
 
-**Status: in progress (session 2026-05-28)**
+**Status: complete (session 2026-05-28)**
 
 #### `list-product` view
 
-Rendered by `renderProductList` (new function in `js/product.js` or `js/render.js`).
-Uses `renderTable` with columns derived from all Product fields plus two computed columns
-appended to each row object before the table call:
-
-- `_instanceCount` — `_foodInstanceCache.filter(i => i.ProductID === row.ProductID).length`
-- `_barcodeCount` — `_barcodeCache.filter(b => b.ProductID === row.ProductID).length`
-
-Column headers: "Items", "Barcodes". Clicking a row navigates to `item-product`.
-
-Filter: text filter on Name, Brand fields (same pattern as food/storage list filters).
+`renderProductList()` in `js/render.js`. Uses `renderTable` with computed columns
+`_instanceCount` and `_barcodeCount` derived from caches at render time. Text filter
+on Label/Brand via `productFilter` (state.js), wired into VIEW_CONFIG filters (same
+pattern as food/storage). Clicking a row calls `showProduct(id)`.
 
 #### `item-product` view
 
-`renderProductDetail` respects `itemMode` (`view` / `edit` / `add`) using the same
-pattern as `renderFoodInstanceDetail`:
-- **view**: read-only field display + Edit button + two sub-tables (see below)
-- **edit**: editable fields + Save/Cancel buttons + inline warning (see edit guardrails)
-- **add**: existing behavior (create new product, optionally link barcode + food instance)
+`renderProductDetail()` in `js/render.js` handles all three modes:
+- **view**: read-only fields + sub-tables (Food Items / Barcodes toggle)
+- **edit**: editable fields + inline warning banner if linked records exist +
+  confirm dialog on save if linked counts > 0
+- **add**: create new product, optionally link barcode + assign to FoodInstance
 
-`saveProduct` gains an edit branch that calls `updateProduct(id, changes)` (new in api.js,
-parallel to `updateFoodInstance`).
+`saveProduct()` branches on `itemMode`: edit calls `updateProduct()` (api.js);
+add calls `createProduct()` with the existing context flow.
 
-**Edit guardrails:**
-- On entering edit mode: compute `linkedInstances` and `linkedBarcodes` counts.
-  If either > 0, render an inline warning banner at top of form:
-  `"Warning: [N] food items and [M] barcodes are linked to this product."`
-- On Save: if either count > 0, `confirm("[N] food items and [M] UPC codes linked. Save changes?")`.
-  Only proceed on confirm.
+`updateProduct()` and `updateFoodBarcode()` added to `api.js` (parallel to
+`updateFoodInstance`/`updateStorageLocation`).
 
-#### Sub-tables in view mode
+#### Scan from `item-product` (implemented)
 
-Below the detail form, a two-tab toggle: `[Food Items (N)] [Barcodes (M)]`.
-Only one sub-table visible at a time (CSS toggle, no re-render needed).
+- **QR_FI**: assign product to instance (confirm), or reassign with warn confirm
+- **UPC resolved**: reassign barcode to this product (warn confirm)
+- **UPC unresolved**: create new FoodBarcode record linking to this product
 
-- **Food Items tab**: table of FoodInstances where `ProductID === currentItem.ProductID`.
-  Columns: InstanceID, Name, StorageLocation, Quantity (if inventory model). Rows are
-  tappable → `pushView()` + navigate to `item-food`.
-- **Barcodes tab**: table of FoodBarcodes where `ProductID === currentItem.ProductID`.
-  Columns: BarcodeID, Barcode (UPC), notes if any. Read-only display.
+Handlers: `assignProductToInstance()`, `linkBarcodeToProduct()` in `js/render.js`.
 
 ---
 
@@ -388,12 +382,12 @@ Details are saved in a separate file. Request if needed.
 ---
 
 ### Known Tech Debt
-- `updateFoodInstance` / `updateStorageLocation` re-fetch sheet on every save (could use
-  cached row index)
-- `goBack()` heuristic fallback is fragile
+- `updateFoodInstance` / `updateStorageLocation` / `updateProduct` / `updateFoodBarcode`
+  all re-fetch sheet on every save (could use cached row index)
 - Some prefix coupling outside the ID layer
 - `renderFilterUI` references `config.filters?.label` but the key is just `config.label`
   (minor bug in filter label display)
+- `activeTab` state variable is written but never read — vestigial from old nav design
 
 ---
 
@@ -424,13 +418,7 @@ new conventions, or roadmap changes. Trigger phrase: natural language confirmati
 as "go ahead", "implement", or "make the changes" moves us to Stage 2 first.
 If CLAUDE.md looks wrong after writing it down, that's a signal to return to Stage 1.
 
-**Stage 3 — Implementation (Diffs)**
-Rather than editing files directly, produce unified diffs (`diff -u` format) for the
-human to review and apply. If a change is large, break it into layers (one diff per file
-or logical unit) and pause for review between each layer before continuing.
-
-Diff format rules:
-- Use standard unified diff (`--- a/path`, `+++ b/path`, `@@ ... @@` hunks)
-- Include enough context lines (≥3) for unambiguous application
-- One diff block per file changed
-- After all diffs for a layer are shown, wait for explicit approval before producing the next layer
+**Stage 3 — Implementation**
+Rather than editing files directly, describe the change location and provide the new code
+block to insert or replace. The human applies the changes. If a change is large, break it
+into layers and pause for review between each layer before continuing.
