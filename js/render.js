@@ -144,42 +144,183 @@ function renderTable({
 
 /* --------- RENDER LISTS ------------ */
 
+function renderProductList() {
+  let rows = (window._productCache || []).map(p => ({
+    ...p,
+    _instanceCount: (window._foodInstanceCache || []).filter(i => i.ProductID === p.ProductID).length,
+    _barcodeCount: (window._barcodeCache || []).filter(b => b.ProductID === p.ProductID).length
+  }));
 
+  if (productFilter.text) {
+    const terms = productFilter.text.toLowerCase().split(/\s+/);
+    rows = rows.filter(p => {
+      const haystack = [p.Label, p.Brand].filter(Boolean).join(' ').toLowerCase();
+      return terms.every(t => haystack.includes(t));
+    });
+  }
+
+  const container = document.getElementById("content");
+  renderTable({
+    container,
+    rows,
+    getRowId: r => r.ProductID,
+    onRowClick: (_, id) => showProduct(id),
+    columns: [
+      { label: "ID",      field: "ProductID", render: r => r.ProductID },
+      { label: "Label",   field: "Label",     render: r => r.Label || "" },
+      { label: "Size",    field: "Size",      render: r => r.Size || "" },
+      { label: "Items",                        render: r => r._instanceCount },
+      { label: "Barcodes",                     render: r => r._barcodeCount }
+    ]
+  });
+}
+
+
+// Stub — replaced when ProductionEvents are implemented.
+function renderProductionEventList() {
+  document.getElementById("content").innerHTML =
+    '<div class="card"><p>Production Events not yet implemented.</p></div>';
+}
 
 /* --------- RENDER ITEM DETAIL ---------- */
 
-
-
 function renderProductDetail() {
   updateFilterVisibility();
-
   const item = currentItem;
   const isAdd = itemMode === "add";
+  const isView = itemMode === "view";
+  const isEdit = itemMode === "edit";
 
-  const context = item._createContext;
-  const contextNote = context?.barcode
-    ? `<div class="subtle-note">Barcode: ${context.barcode}</div>`
+  const linkedInstances = (window._foodInstanceCache || []).filter(i => i.ProductID === item.ProductID).length;
+  const linkedBarcodes  = (window._barcodeCache || []).filter(b => b.ProductID === item.ProductID).length;
+
+  const contextNote = item._createContext?.barcode
+    ? `<div class="subtle-note">Barcode: ${item._createContext.barcode}</div>`
     : "";
 
-  const html = `
-    <div class="card edit-mode">
-      <h2>${isAdd ? "New Product" : item.ProductID}</h2>
-      ${contextNote}
-      <div style="margin-top: 1rem;">
-        ${renderDetailActions()}
+  const warningBanner = isEdit && (linkedInstances > 0 || linkedBarcodes > 0)
+    ? `<div class="edit-warning">Warning: ${linkedInstances} food item(s) and ${linkedBarcodes} barcode(s) are linked to this product.</div>`
+    : "";
+
+  // Sub-tables (view mode only)
+  const subTables = isView && !isAdd ? `
+    <div class="sub-tables" style="margin-top:1.5rem;">
+      <div class="sub-tab-bar">
+        <button class="sub-tab active" data-subtab="instances">Food Items (${linkedInstances})</button>
+        <button class="sub-tab" data-subtab="barcodes">Barcodes (${linkedBarcodes})</button>
       </div>
+      <div id="subtab-instances" class="subtab-panel">
+        ${renderLinkedInstancesTable(item.ProductID)}
+      </div>
+      <div id="subtab-barcodes" class="subtab-panel" style="display:none;">
+        ${renderLinkedBarcodesTable(item.ProductID)}
+      </div>
+    </div>
+  ` : "";
+
+  const html = `
+    <div class="card ${isEdit ? 'edit-mode' : isView ? 'view-mode' : 'edit-mode'}">
+      <h2>${isAdd ? "New Product" : (item.Label || item.ProductID)}</h2>
+      ${contextNote}
+      ${warningBanner}
+      <div style="margin-top: 1rem;">${renderDetailActions()}</div>
       ${renderDetailForm("item-product", item)}
+      ${subTables}
     </div>
   `;
 
   document.getElementById("content").innerHTML = html;
   bindDetailEvents();
+
+  // Sub-tab toggle
+  document.querySelectorAll(".sub-tab").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".sub-tab").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      const which = btn.dataset.subtab;
+      document.getElementById("subtab-instances").style.display = which === "instances" ? "" : "none";
+      document.getElementById("subtab-barcodes").style.display  = which === "barcodes"  ? "" : "none";
+    });
+  });
+
+  // Linked instance rows are tappable → navigate to item-food
+  document.querySelectorAll(".linked-row[data-fi-id]").forEach(row => {
+    row.addEventListener("click", () => showFoodInstance(row.dataset.fiId));
+  });
 }
 
+function renderLinkedInstancesTable(productID) {
+  const rows = (window._foodInstanceCache || []).filter(i => i.ProductID === productID);
+  if (!rows.length) return '<p style="color:#888">None</p>';
+  return rows.map(i => `
+    <div class="linked-row" data-fi-id="${i.InstanceID}">
+      <span class="linked-id">${i.InstanceID}</span>
+      <span>${i.Label || ""}</span>
+      <span class="linked-secondary">${window._storageMap?.[i.StorageLocationID]?.Label || ""}</span>
+    </div>
+  `).join('');
+}
+
+function renderLinkedBarcodesTable(productID) {
+  const rows = (window._barcodeCache || []).filter(b => b.ProductID === productID);
+  if (!rows.length) return '<p style="color:#888">None</p>';
+  return rows.map(b => `
+    <div class="linked-row">
+      <span class="linked-id">${b.BarcodeID}</span>
+      <span>${b.Code || ""}</span>
+    </div>
+  `).join('');
+}
+
+function showProduct(id) {
+  pushView();
+  currentView = "item-product";
+  const item = window._productCache.find(p => p.ProductID === id);
+  if (!item) return;
+  currentItem = { ...item };
+  originalItem = item;
+  itemMode = "view";
+  updateModeButton();
+  renderView();
+}
+
+async function assignProductToInstance(instance, product) {
+  try {
+    await updateFoodInstance(instance.InstanceID, { ProductID: product.ProductID });
+    const cached = window._foodInstanceCache.find(i => i.InstanceID === instance.InstanceID);
+    if (cached) cached.ProductID = product.ProductID;
+    alert(`Assigned "${product.Label}" to ${instance.Label || instance.InstanceID}.`);
+    renderView(); // refresh sub-tables
+  } catch (err) {
+    console.error(err);
+    alert("Error assigning product");
+  }
+}
+
+async function linkBarcodeToProduct(scan, product) {
+  try {
+    if (scan.resolved && scan.product) {
+      // Reassign existing barcode record
+      const existing = window._barcodeCache.find(b => b.ProductID === scan.product.ProductID
+        && normalizeBarcode(b.Code) === normalizeBarcode(scan.code));
+      if (existing) {
+        await updateFoodBarcode(existing.BarcodeID, { ProductID: product.ProductID });
+        existing.ProductID = product.ProductID;
+        const norm = normalizeBarcode(scan.code);
+        barcodeProductMap[norm] = product.ProductID;
+      }
+    } else {
+      // Create new barcode record
+      await createFoodBarcode({ Code: scan.code, ProductID: product.ProductID });
+    }
+    renderView(); // refresh sub-tables
+  } catch (err) {
+    console.error(err);
+    alert("Error linking barcode");
+  }
+}
 
 async function saveProduct() {
-  const context = currentItem._createContext || {};
-
   Object.assign(currentItem, extractFields("item-product"));
 
   if (!currentItem.Label) {
@@ -187,38 +328,58 @@ async function saveProduct() {
     return;
   }
 
-  // Strip internal context key before saving
+  // --- EDIT branch ---
+  if (itemMode === "edit") {
+    const linkedInstances = (window._foodInstanceCache || []).filter(i => i.ProductID === currentItem.ProductID).length;
+    const linkedBarcodes  = (window._barcodeCache || []).filter(b => b.ProductID === currentItem.ProductID).length;
+
+    if (linkedInstances > 0 || linkedBarcodes > 0) {
+      const ok = confirm(`${linkedInstances} food item(s) and ${linkedBarcodes} UPC code(s) are linked to this product. Save changes?`);
+      if (!ok) return;
+    }
+
+    const changes = getChangedFields(originalItem, currentItem);
+    if (!Object.keys(changes).length) {
+      alert("No changes to save");
+      return;
+    }
+
+    try {
+      await updateProduct(currentItem.ProductID, changes);
+      const cached = window._productCache.find(p => p.ProductID === currentItem.ProductID);
+      if (cached) Object.assign(cached, changes);
+      productMap[currentItem.ProductID] = { ...cached };
+      originalItem = { ...currentItem };
+      resetEditState();
+      renderProductDetail();
+    } catch (err) {
+      console.error(err);
+      alert("Error saving product");
+    }
+    return;
+  }
+
+  // --- ADD branch ---
+  const context = currentItem._createContext || {};
   const { _createContext, ...productData } = currentItem;
 
   try {
     const newProduct = await createProduct(productData);
 
-    // Link barcode if one was provided
     if (context.barcode) {
-      await createFoodBarcode({
-        Code: context.barcode,
-        ProductID: newProduct.ProductID
-      });
+      await createFoodBarcode({ Code: context.barcode, ProductID: newProduct.ProductID });
     }
 
-    // Assign to the originating food item if the scan came from item-food view
     if (context.currentItem) {
-      await updateFoodInstance(context.currentItem.InstanceID, {
-        ProductID: newProduct.ProductID
-      });
-
-      const cached = window._foodInstanceCache.find(
-        i => i.InstanceID === context.currentItem.InstanceID
-      );
+      await updateFoodInstance(context.currentItem.InstanceID, { ProductID: newProduct.ProductID });
+      const cached = window._foodInstanceCache.find(i => i.InstanceID === context.currentItem.InstanceID);
       if (cached) cached.ProductID = newProduct.ProductID;
-
       updatePreviousViewItem(prev => { prev.ProductID = newProduct.ProductID; });
     }
 
     resetEditState();
     goBack();
     renderView();
-
   } catch (err) {
     console.error(err);
     alert("Error creating product");
@@ -1152,14 +1313,3 @@ function handleEntityChange(value) {
   renderView();
 }
 
-// Stub — replaced in Layer 4 when product list view is built.
-function renderProductList() {
-  document.getElementById("content").innerHTML =
-    '<div class="card"><p>Products list coming soon.</p></div>';
-}
-
-// Stub — replaced when ProductionEvents are implemented.
-function renderProductionEventList() {
-  document.getElementById("content").innerHTML =
-    '<div class="card"><p>Production Events not yet implemented.</p></div>';
-}

@@ -389,6 +389,61 @@ body.select-mode .inventory-table tbody tr {
   /* default styling, optional */
 }
 
+/* ---------- PRODUCT SUB-TABLES ---------- */
+
+.edit-warning {
+  background: #fff7ed;
+  border-left: 4px solid #f97316;
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 1rem;
+  font-size: 0.9em;
+  color: #9a3412;
+}
+
+.sub-tab-bar {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.sub-tab {
+  padding: 0.3rem 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  background: #f3f4f6;
+  cursor: pointer;
+  font-size: 0.9em;
+}
+
+.sub-tab.active {
+  background: #2563eb;
+  color: white;
+  border-color: #2563eb;
+}
+
+.linked-row {
+  display: flex;
+  gap: 1rem;
+  padding: 0.4rem 0;
+  border-bottom: 1px solid #f3f4f6;
+  cursor: pointer;
+}
+
+.linked-row:hover {
+  background: #f9fafb;
+}
+
+.linked-id {
+  font-family: monospace;
+  color: #6b7280;
+  min-width: 6rem;
+}
+
+.linked-secondary {
+  color: #9ca3af;
+  font-size: 0.9em;
+}
+
 /* -------- FILTER ---------- */
 
 .filters-header-row {

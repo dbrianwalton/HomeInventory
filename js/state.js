@@ -21,6 +21,7 @@ let inventoryFilter = {
 let storageFilter = {
   text: ''
 };
+let productFilter = { text: '' };
 
 let foodInstanceEventMap = {};
 
@@ -77,6 +78,9 @@ function enterEditMode() {
     case "item-storage":
       renderStorageDetail();
       break;
+    case "item-product":
+      renderProductDetail();
+      break;
   }
   
 }
@@ -111,6 +115,11 @@ function cancelEdit() {
       original = window._storageLocationCache.find(i => i.StorageLocationID === currentItem.StorageLocationID);
       currentItem = { ...original };
       renderStorageDetail();
+      break;
+    case "item-product":
+      original = window._productCache.find(p => p.ProductID === currentItem.ProductID);
+      currentItem = { ...original };
+      renderProductDetail();
       break;
   } 
 }

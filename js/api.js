@@ -623,3 +623,45 @@ async function updateStorageLocation(id, changes) {
 
   return res.json();
 }
+
+async function updateProduct(productID, changes) {
+  const rows = await sheetFetch("Products!A1:Z");
+  const index = rows.findIndex(r => r.ProductID === productID);
+  if (index === -1) throw new Error("Product not found");
+
+  const headers = Object.keys(rows[0]);
+  const row = rows[index];
+  Object.entries(changes).forEach(([key, value]) => { row[key] = value; });
+  const values = headers.map(h => row[h] || "");
+  const rowNumber = index + 2;
+
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${getSheetId()}/values/Products!A${rowNumber}:Z${rowNumber}?valueInputOption=USER_ENTERED`;
+  const res = await fetch(url, {
+    method: "PUT",
+    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ values: [values] })
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+async function updateFoodBarcode(barcodeID, changes) {
+  const rows = await sheetFetch("FoodBarcodes!A1:Z");
+  const index = rows.findIndex(r => r.BarcodeID === barcodeID);
+  if (index === -1) throw new Error("Barcode not found");
+
+  const headers = Object.keys(rows[0]);
+  const row = rows[index];
+  Object.entries(changes).forEach(([key, value]) => { row[key] = value; });
+  const values = headers.map(h => row[h] || "");
+  const rowNumber = index + 2;
+
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${getSheetId()}/values/FoodBarcodes!A${rowNumber}:Z${rowNumber}?valueInputOption=USER_ENTERED`;
+  const res = await fetch(url, {
+    method: "PUT",
+    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ values: [values] })
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}

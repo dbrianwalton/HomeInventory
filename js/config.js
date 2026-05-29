@@ -277,12 +277,72 @@ const VIEW_CONFIG = {
 
   "item-product": {
     type: "detail",
-    render: renderProductDetail
+    render: renderProductDetail,
+
+    onScan: ({ currentItem, scan }) => {
+      if (scan.type === "QR_FI") {
+        const instance = scan.entity;
+        if (!instance) return [];
+        return [
+          {
+            label: instance.ProductID
+              ? (instance.ProductID === currentItem.ProductID
+                  ? "Already assigned to this product"
+                  : `Reassign from ${productMap[instance.ProductID]?.Label || instance.ProductID}`)
+              : `Assign ${currentItem.Label} to ${instance.Label || instance.InstanceID}`,
+            riskLevel: instance.ProductID && instance.ProductID !== currentItem.ProductID ? "warn" : "safe",
+            condition: () => instance.ProductID !== currentItem.ProductID,
+            warningMessage: () =>
+              `This item already has product "${productMap[instance.ProductID]?.Label || instance.ProductID}". Reassign to "${currentItem.Label}"?`,
+            execute: () => assignProductToInstance(instance, currentItem)
+          }
+        ];
+      }
+
+      if (scan.type === "UPC") {
+        return [
+          {
+            label: scan.resolved
+              ? (scan.product?.ProductID === currentItem.ProductID
+                  ? "Barcode already linked to this product"
+                  : `Reassign barcode from "${scan.product?.Label || ''}"`)
+              : `Link barcode ${scan.code} to ${currentItem.Label}`,
+            riskLevel: scan.resolved && scan.product?.ProductID !== currentItem.ProductID ? "warn" : "safe",
+            condition: () => !(scan.resolved && scan.product?.ProductID === currentItem.ProductID),
+            warningMessage: () =>
+              `Barcode ${scan.code} is already linked to "${scan.product?.Label}". Reassign to "${currentItem.Label}"?`,
+            execute: () => linkBarcodeToProduct(scan, currentItem)
+          }
+        ];
+      }
+
+      return [];
+    }
   },
 
   "list-product": {
     type: "list",
-    render: renderProductList
+    render: renderProductList,
+    filters: {
+      label: "Filter",
+      placeholder: "Filter by name or brand",
+      getValue: () => productFilter.text || "",
+      setValue: (v) => { productFilter.text = v; },
+      onApply: renderProductList,
+      chips: [
+        {
+          getValue: () => productFilter.text,
+          label: (v) => v,
+          onClear: () => {
+            productFilter.text = '';
+            const input = document.getElementById("filterInput");
+            if (input) input.value = '';
+            renderProductList();
+            renderFilterChips();
+          }
+        }
+      ]
+    }
   },
 
   "list-event": {
