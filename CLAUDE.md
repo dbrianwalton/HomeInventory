@@ -23,27 +23,32 @@ sheets.
 ## File Structure
 
 ```
-index.html          — Single-page shell. All panels (settings, labels, events modal)
-                      are hidden divs toggled by JS. Loads scripts in dependency order.
-js/state.js         — All mutable global state and simple state-mutating helpers
-                      (markDirty, cancelEdit, getChangedFields, etc.)
-js/api.js           — Google Sheets API layer: auth, loaders, creators, updaters.
-                      Also holds ID_CONFIG, PREFIX_TO_ENTITY, ENTITY_RESOLVERS, appID.
-                      (Note: ID_CONFIG / PREFIX_TO_ENTITY / ENTITY_RESOLVERS are defined
-                      in app.js — see below.)
-js/filters.js       — Filter bar rendering, chip rendering, filter event binding.
-                      Reads VIEW_CONFIG from views.js; writes to inventoryFilter /
-                      storageFilter in state.js.
-js/views.js         — Everything else: VIEW_CONFIG, LABEL_CONFIG, ENTITY_FIELDS,
-                      DETAIL_ACTIONS, all render functions, scan dispatch, label PDF
-                      generation, event modal, utility functions.
-js/app.js           — window.onload bootstrap, settings panel, ID_CONFIG,
-                      PREFIX_TO_ENTITY, ENTITY_RESOLVERS.
-btm-inventory.css   — All styles.
-manifest.json       — PWA manifest (installed on iOS/Android home screen).
+index.html               — Single-page shell. All panels (settings, labels, events modal)
+                           are hidden divs toggled by JS. Loads scripts in dependency order.
+js/state.js              — All mutable global state and simple state-mutating helpers
+                           (markDirty, cancelEdit, getChangedFields, etc.)
+js/api.js                — Google Sheets API layer: auth, loaders, creators, updaters.
+js/foodInstance.js       — food-item and food-list view logic, including the events list
+                           and inventory quantity calculation from events.
+js/storageLocation.js    — storage-item and storage-list view logic.
+js/filters.js            — Filter bar rendering, chip rendering, filter event binding.
+                           Reads VIEW_CONFIG from config.js; writes to inventoryFilter /
+                           storageFilter in state.js.
+js/render.js             — Generic view functions and utilities: renderDetailForm,
+                           renderField, extractFields, entity selector, action prompt,
+                           renderView dispatcher, and other shared render helpers.
+js/scanner.js            — Camera/scanner setup, scan debounce, canvas overlay,
+                           handleScan / resolveScan / dispatchScan / routeScanActions.
+js/labels.js             — Label PDF generation (generateLabelsPDF, buildQR helpers).
+js/config.js             — VIEW_CONFIG, LABEL_CONFIG, ENTITY_FIELDS, DETAIL_ACTIONS.
+js/app.js                — window.onload bootstrap, settings panel, ID_CONFIG,
+                           PREFIX_TO_ENTITY, ENTITY_RESOLVERS.
+btm-inventory.css        — All styles.
+manifest.json            — PWA manifest (installed on iOS/Android home screen).
 ```
 
-Script load order in index.html: state.js → api.js → filters.js → views.js → app.js
+Script load order in index.html:
+state.js → api.js → foodInstance.js → storageLocation.js → filters.js → render.js → scanner.js → labels.js → config.js → app.js
 
 ---
 
@@ -285,8 +290,11 @@ Uses Google Identity Services (GIS) `initTokenClient` with implicit/token flow.
 - PWA manifest (installable)
 
 ### Missing / Stubbed (as of session 2026-05-28)
-- `startTransfer(source, target)` — Phase 3, stubbed
+- `startTransfer(source, target)` — lower priority, stubbed
 - Product-item edit/view mode (add mode works; view/edit of existing products deferred)
+- Product-list view (no browse entry point exists yet)
+- Navigation/tab UI redesign (see roadmap below)
+- ProductionEvents + PreparedFood data model and UI (see roadmap below)
 
 ### Scanner UX — Debounce + Canvas Overlay
 
@@ -359,6 +367,108 @@ let repeatScanSession = null;
 
 While a session is active, `storage-item` renders a session UI overlay (checklist + Done button).
 Ending the session clears `repeatScanSession` and stops the scanner.
+
+### Navigation / Tab UI Redesign — Roadmap
+
+Current nav uses plain buttons (Inventory / Storage / Events). Design goals:
+
+1. **Visual tabs** — restyle the nav bar to look like real tabs (CSS: active tab elevated,
+   border-bottom removed on active, matching background to content area).
+
+2. **Unified list view with record-type selector** — rather than separate list views per entity
+   type, a single list panel with a dropdown (or tab-within-tab) to switch between:
+   Inventory | Storage | Products | Production Events
+   The selected type drives which VIEW_CONFIG list renderer is used and which filters appear.
+   Individual items are still navigated to via their own detail views.
+
+3. **Items remain navigable from both list and from related items** — e.g. a FoodInstance can
+   be reached from the inventory list or from a PreparedFood detail; a Product can be reached
+   from product list or from a FoodInstance field.
+
+This redesign should be done before adding ProductionEvents to avoid retrofitting nav twice.
+
+---
+
+### Product View/Edit — Roadmap
+
+**What needs to be built:**
+- `renderProductDetail` must respect `itemMode` (view/edit/add) using the same pattern as
+  `renderFoodInstanceDetail` and `renderStorageDetail`.
+- `saveProduct` needs an edit branch (currently only handles "add").
+- `updateProduct(id, changes)` needs to be added to `api.js` (parallel to `updateFoodInstance`).
+- A `"product-list"` entry in VIEW_CONFIG with text filter, navigates to `product-item`.
+
+**Edit guardrails:**
+When saving edits to a Product, count associated records before writing:
+- `linkedInstances` = `_foodInstanceCache.filter(i => i.ProductID === id).length`
+- `linkedBarcodes` = `_barcodeCache.filter(b => b.ProductID === id).length`
+
+If either count > 0, show a confirm dialog:
+`"[N] food items and [M] UPC codes are linked to this product. Save changes anyway?"`
+
+User must confirm before the update proceeds.
+
+---
+
+### ProductionEvents — Data Model and Roadmap
+
+**Motivation:** Track food processing steps (freeze-drying, home-canning, dehydrating, freezing)
+that produce the stored FoodInstances. A single processing run (e.g. a freeze-dry cycle) may
+process multiple food types simultaneously, and each food type may yield multiple packages.
+
+**Three-level hierarchy:**
+
+```
+ProcessingEvent (one per batch run)
+  └─ PreparedFood (one per food type in that batch)
+       └─ FoodInstance (one per output package / container)
+```
+
+**`ProcessingEvents` sheet** — batch-level record:
+| Field | Notes |
+|---|---|
+| EventID (PE-xxxxx) | primary key |
+| EventType | freeze-dry \| home-can \| dehydrate \| freeze |
+| Date | processing date |
+| Description | short label for the run |
+| Notes | free text |
+| *Type-specific fields (sparse)* | see below |
+
+Type-specific columns (unused cells left blank):
+- **freeze-dry**: PreFreeze, FreezeTemp, FreezeTime, DryTemp, DryTime
+- **home-can**: CanMethod (water-bath \| pressure), Pressure, ProcessTime
+- **dehydrate**: DehydrateTemp, DehydrateTime
+- **freeze**: FreezeTemp
+
+**`PreparedFoods` sheet** — per-food-type record within a batch:
+| Field | Notes |
+|---|---|
+| PreparedFoodID (PF-xxxxx) | primary key |
+| ProcessingEventID | FK → ProcessingEvents |
+| Description | food type name (e.g. "Blueberries") |
+| PrepNotes | preparation details specific to this food |
+| PrepMethod | optional (e.g. sliced, blanched) |
+
+**FoodInstance** gains an optional `PreparedFoodID` FK field pointing to its PreparedFood record.
+(Replaces any direct link to ProcessingEvent — instances link to PreparedFood, which links to
+ProcessingEvent.)
+
+**UX:** ProcessingEvent detail shows all PreparedFoods for that run; PreparedFood detail shows
+all linked FoodInstances. From a FoodInstance, the PreparedFood and its parent ProcessingEvent
+are navigable as related items.
+
+**ID_CONFIG additions needed:**
+```js
+PreparedFood: "PF"
+// ProcessingEvent already has ProductionEvent: "PE" — rename key to ProcessingEvent: "PE"
+```
+
+**New sheets needed:** ProcessingEvents, PreparedFoods
+(FoodInstances sheet gains a PreparedFoodID column)
+
+This feature should be built after the navigation redesign and product view/edit are complete.
+
+---
 
 ### Known Tech Debt
 - `updateFoodInstance` / `updateStorageLocation` re-fetch sheet on every save (could use
