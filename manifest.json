@@ -1,7 +1,8 @@
 {
   "name": "BTM Inventory App",
   "short_name": "Inventory",
-  "start_url": "./",
+  "start_url": "https://dbrianwalton.github.io/HomeInventory/",
+  "scope": "https://dbrianwalton.github.io/HomeInventory/",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#ffffff",
