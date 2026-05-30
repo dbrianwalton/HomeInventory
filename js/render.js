@@ -165,8 +165,14 @@ function renderProductList() {
   }
 
   const container = document.getElementById("content");
+  container.innerHTML = `
+      <div class="list-actions">
+        <button onclick="addProduct()">\uFF0B</button>
+      </div>
+      <div id="product-table-container"></div>
+    `;
   renderTable({
-    container,
+    container: document.getElementById("product-table-container"),
     rows,
     getRowId: r => r.ProductID,
     onRowClick: (_, id) => showProduct(id),
@@ -180,6 +186,16 @@ function renderProductList() {
   });
 }
 
+
+function addProduct() {
+  pushView();
+  currentView = "item-product";
+  itemMode = "add";
+  currentItem = { ProductID: "(new)", Label: "", Brand: "", Notes: "" };
+  originalItem = {};
+  updateModeButton();
+  renderView();
+}
 
 // Stub — replaced when ProductionEvents are implemented.
 function renderProductionEventList() {
@@ -195,6 +211,7 @@ function renderProductDetail() {
   const isAdd = itemMode === "add";
   const isView = itemMode === "view";
   const isEdit = itemMode === "edit";
+  const isEditable = itemMode === "edit" || itemMode === "add";
 
   const linkedInstances = (window._foodInstanceCache || []).filter(i => i.ProductID === item.ProductID).length;
   const linkedBarcodes  = (window._barcodeCache || []).filter(b => b.ProductID === item.ProductID).length;
@@ -223,13 +240,18 @@ function renderProductDetail() {
     </div>
   ` : "";
 
+  const addInstanceBtn = isView && !isAdd
+    ? `<button data-action="add-food-instance" style="margin-top:1rem;">Add Food Instance</button>`
+    : "";
+
   const html = `
-    <div class="card ${isEdit ? 'edit-mode' : isView ? 'view-mode' : 'edit-mode'}">
+    <div class="card ${isEditable ? 'edit-mode' : 'view-mode'}">
       <h2>${isAdd ? "New Product" : (item.Label || item.ProductID)}</h2>
       ${contextNote}
       ${warningBanner}
       <div style="margin-top: 1rem;">${renderDetailActions()}</div>
       ${renderDetailForm("item-product", item)}
+      ${addInstanceBtn}
       ${subTables}
     </div>
   `;
@@ -252,6 +274,11 @@ function renderProductDetail() {
   document.querySelectorAll(".linked-row[data-fi-id]").forEach(row => {
     row.addEventListener("click", () => showFoodInstance(row.dataset.fiId));
   });
+  
+  const addFIBtn = document.querySelector('[data-action="add-food-instance"]');
+  if (addFIBtn) {
+    addFIBtn.addEventListener('click', () => addFoodInstanceForProduct(item.ProductID));
+  }
 }
 
 function renderLinkedInstancesTable(productID) {
@@ -461,7 +488,10 @@ function renderEntitySelectorList() {
     ],
     getRowId: field.getId,
     onRowClick: (event, id) => {
-      //const id = field.getId(row);
+      if (field.onSelect) {
+        field.onSelect(id);
+        return;
+      }
 
       updatePreviousViewItem(item => {
         item[fieldKey] = id;
@@ -479,6 +509,64 @@ function applyEntitySelection(fieldKey, selectedID) {
   });
 
   goBack();
+  renderView();
+}
+
+
+function openProductSelector(onSelect) {
+  pushView();
+  currentItem = {
+    _selectField: "ProductID",
+    _selectConfig: {
+      label: "Product",
+      getOptions: () => window._productCache || [],
+      getLabel: (p) => formatProductLabel(p),
+      getId: (p) => p.ProductID,
+      getSearchText: (p) => `${p.Label || ""} ${p.Size || ""}`.toLowerCase(),
+      onSelect: (id) => {
+        goBack();
+        showProduct(id);
+      }
+    }
+  };
+  selectorSearchTerm = "";
+  currentView = "entity-select";
+  renderView();
+}
+
+function routeUPCToFoodInstance(product) {
+  const matches = (window._foodInstanceCache || []).filter(
+    i => i.ProductID === product.ProductID && !(i.Status && i.Status !== "")
+  );
+
+  if (matches.length === 0) {
+    showProduct(product.ProductID);
+    return;
+  }
+
+  if (matches.length === 1) {
+    showFoodInstance(matches[0].InstanceID);
+    return;
+  }
+
+  // Multiple matches — entity-select
+  pushView();
+  currentItem = {
+    _selectField: "InstanceID",
+    _selectConfig: {
+      label: "Food Instance",
+      getOptions: () => matches,
+      getLabel: (i) => `${i.InstanceID} — ${i.Label || ""}`,
+      getId: (i) => i.InstanceID,
+      getSearchText: (i) => `${i.Label || ""} ${i.Keywords || ""}`.toLowerCase(),
+      onSelect: (id) => {
+        goBack();
+        showFoodInstance(id);
+      }
+    }
+  };
+  selectorSearchTerm = "";
+  currentView = "entity-select";
   renderView();
 }
 
@@ -521,6 +609,7 @@ function showProducts() {
   activeTab = 'products';
   currentListEntity = "product";
   currentView = "list-product";
+  updateModeButton();
   renderView();
 }
 
@@ -549,9 +638,9 @@ function exitToListView() {
 function toggleMode() {
 
   // Inventory behavior
-  if (currentView === "item-food" ||
-      currentView === "item-storage" ||
-      currentView === "item-product") {
+  if (currentView === "list-food" ||
+      currentView === "list-storage" ||
+      currentView === "list-product") {
     interactionMode = interactionMode === "browse" ? "select" : "browse";
     document.body.classList.toggle("select-mode", interactionMode === "select");
     clearSelection();
@@ -599,16 +688,30 @@ function updateModeButton() {
 
   if (itemMode === "add") {
     btn.textContent = "\u2795";
+    btn.style.display = "";
     return;
   }
 
   if (currentView === "list-food" || currentView === "list-storage") {
     btn.textContent = interactionMode === "select" ? "✅" : "🔍";
+    btn.style.display = "";
+    return;
+  }
+
+  if (currentView === "list-product") {
+  btn.textContent = "🔍";
+  btn.style.display = "";
+    return;
   }
 
   if (currentView === "item-food" || currentView === "item-storage" || currentView === "item-product") {
     btn.textContent = itemMode === "edit" ? "✏️" : "👁️";
+    btn.style.display = "";
+    return;
   }
+
+  // other views: no action
+  btn.style.display = "none";
 }
 
 
@@ -907,7 +1010,9 @@ function refreshSelectionUI() {
 function updateSelectionUI() {
   const countEl = document.getElementById('selectionCount');
   if (countEl) {
-    countEl.textContent = `${selectedItems.size}`;
+    const show = interactionMode === "select";
+    countEl.textContent = show ? `${selectedItems.size}` : '';
+    countEl.style.display = show ? '' : 'none';
   }
 }
 
@@ -1008,8 +1113,15 @@ function renderField(field, item, readOnly) {
 
   // Select (dropdown list)
   if (field.type === "select") {
+    const resolvedOptions = typeof field.options === "function"
+      ? field.options(item)
+      : field.options;
+
     if (readOnly || !editable) {
-      return `<div>${value}</div>`;
+      const displayVal = field.displayValue
+        ? field.displayValue(value, item)
+        : value;
+      return `<div>${displayVal}</div>`;
     }
 
     return `
@@ -1018,8 +1130,8 @@ function renderField(field, item, readOnly) {
         data-field="${field.key}"
         class="${isEmpty ? 'empty' : ''}"
       >
-        ${field.options.map(opt => `
-          <option ${opt === value ? "selected" : ""}>${opt}</option>
+        ${resolvedOptions.map(opt => `
+          <option value="${opt}" ${opt === value ? "selected" : ""}>${opt || "Active"}</option>
         `).join('')}
       </select>
     `;
@@ -1322,6 +1434,7 @@ function closeItemTab() {
   clearDirty();
   clearSelection();
   currentView = "list-" + currentListEntity;
+  updateModeButton();
   renderView();
 }
 
@@ -1334,6 +1447,7 @@ function handleEntityChange(value) {
   clearDirty();
   clearSelection();
   currentView = "list-" + value;
+  updateModeButton();
   renderView();
 }
 

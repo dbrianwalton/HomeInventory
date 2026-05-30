@@ -87,6 +87,17 @@ function buildFilterExpansionPanel(config) {
 
       </div>
 
+      <div class="filter-inline-group" style="margin-top:0.5rem;">
+        <label>Status:</label>
+        <div id="status-filter-toggles" style="display:flex;gap:0.25rem;flex-wrap:wrap;">
+          ${["", "Consumed", "Discarded", "Removed"].map(s => {
+            const label = s || "Active";
+            const active = inventoryFilter.statusFilter.has(s);
+            return `<button class="status-toggle-btn${active ? ' filter-toggle-active' : ''}" data-status-value="${s}">${label}</button>`;
+          }).join('')}
+        </div>
+      </div>
+
     </div>
   `;
 }
@@ -211,7 +222,7 @@ function bindFilterEvents() {
   if (from) from.addEventListener('change', applyDateFilter);
   if (to) to.addEventListener('change', applyDateFilter);
 
-  const storageSel = document.getElementById("storageScopeFilter");
+const storageSel = document.getElementById("storageScopeFilter");
 
   if (storageSel) {
     storageSel.addEventListener("change", () => {
@@ -219,8 +230,20 @@ function bindFilterEvents() {
       applyFiltersAndRefresh();
     });
   }
-}
 
+  document.querySelectorAll('.status-toggle-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const val = btn.dataset.statusValue;
+      if (inventoryFilter.statusFilter.has(val)) {
+        inventoryFilter.statusFilter.delete(val);
+      } else {
+        inventoryFilter.statusFilter.add(val);
+      }
+      btn.classList.toggle('filter-toggle-active', inventoryFilter.statusFilter.has(val));
+      applyFiltersAndRefresh();
+    });
+  });
+}
 
 function applyFiltersAndRefresh() {
   const config = VIEW_CONFIG[currentView].filters;

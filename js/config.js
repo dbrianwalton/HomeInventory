@@ -89,14 +89,91 @@ const VIEW_CONFIG = {
     },
 
     onScan: ({ scan }) => {
-      // List view: navigation only. currentItem-dependent actions live in item-food.
       if (scan.type === "QR_FI") {
+        const entity = scan.entity;
+        if (!entity) return [];
+
+        if (entity.Model === "inventory") {
+          return [
+            {
+              label: "Add",
+              riskLevel: "safe",
+              execute: () => { goBack(); showFoodInstance(scan.id); openEventModal("ADD"); }
+            },
+            {
+              label: "Remove",
+              riskLevel: "safe",
+              execute: () => { goBack(); showFoodInstance(scan.id); openEventModal("REMOVE"); }
+            },
+            {
+              label: "Inventory Count",
+              riskLevel: "safe",
+              execute: () => { goBack(); showFoodInstance(scan.id); openEventModal("INVENTORY"); }
+            },
+            {
+              label: "Mark Removed",
+              riskLevel: "warn",
+              warningMessage: () => `Mark ${entity.Label || scan.id} as Removed?`,
+              execute: async () => {
+                await markFoodInstanceStatus(scan.id, "Removed");
+                goBack();
+                renderView();
+              }
+            },
+            {
+              label: "View",
+              riskLevel: "safe",
+              execute: () => { goBack(); showFoodInstance(scan.id); }
+            },
+            {
+              label: "Edit",
+              riskLevel: "safe",
+              execute: () => { goBack(); showFoodInstance(scan.id); enterEditMode(); }
+            }
+          ];
+        }
+
+        // unit item
         return [
           {
-            label: "Open Item",
-            scanMode: "navigate",
+            label: "Mark Consumed",
+            riskLevel: "warn",
+            warningMessage: () => `Mark ${entity.Label || scan.id} as Consumed?`,
+            execute: async () => {
+              await markFoodInstanceStatus(scan.id, "Consumed");
+              goBack();
+              renderView();
+            }
+          },
+          {
+            label: "Mark Discarded",
+            riskLevel: "warn",
+            warningMessage: () => `Mark ${entity.Label || scan.id} as Discarded?`,
+            execute: async () => {
+              await markFoodInstanceStatus(scan.id, "Discarded");
+              goBack();
+              renderView();
+            }
+          },
+          {
+            label: "Mark Removed",
+            riskLevel: "warn",
+            warningMessage: () => `Mark ${entity.Label || scan.id} as Removed?`,
+            execute: async () => {
+              await markFoodInstanceStatus(scan.id, "Removed");
+              goBack();
+              renderView();
+            }
+          },
+          {
+            label: "View",
             riskLevel: "safe",
-            execute: () => showFoodInstance(scan.id)
+            execute: () => { goBack(); showFoodInstance(scan.id); }
+          },
+          {
+            label: "Edit",
+            riskLevel: "safe",
+            execute: () => { goBack(); showFoodInstance(scan.id); enterEditMode(); }
           }
         ];
       }
@@ -113,18 +190,30 @@ const VIEW_CONFIG = {
       }
 
       if (scan.type === "UPC") {
-        if (!scan.resolved) {
+        if (scan.resolved) {
           return [
             {
-              label: "Create Product",
+              label: "Go to Item",
               scanMode: "navigate",
               riskLevel: "safe",
-              execute: () => openCreateProduct({ source: "scan", barcode: scan.code })
+              execute: () => routeUPCToFoodInstance(scan.product)
             }
           ];
         }
-        // Known UPC from list view — no action defined yet
-        return [];
+        return [
+          {
+            label: "Select Product",
+            scanMode: "navigate",
+            riskLevel: "safe",
+            execute: () => { goBack(); openProductSelector(); }
+          },
+          {
+            label: "Create Product",
+            scanMode: "navigate",
+            riskLevel: "safe",
+            execute: () => openCreateProduct({ source: "scan", barcode: scan.code })
+          }
+        ];
       }
 
       return [];
@@ -158,12 +247,90 @@ const VIEW_CONFIG = {
 
     onScan: ({ scan }) => {
       if (scan.type === "QR_FI") {
+        const entity = scan.entity;
+        if (!entity) return [];
+
+        if (entity.Model === "inventory") {
+          return [
+            {
+              label: "Add",
+              riskLevel: "safe",
+              execute: () => { goBack(); showFoodInstance(scan.id); openEventModal("ADD"); }
+            },
+            {
+              label: "Remove",
+              riskLevel: "safe",
+              execute: () => { goBack(); showFoodInstance(scan.id); openEventModal("REMOVE"); }
+            },
+            {
+              label: "Inventory Count",
+              riskLevel: "safe",
+              execute: () => { goBack(); showFoodInstance(scan.id); openEventModal("INVENTORY"); }
+            },
+            {
+              label: "Mark Removed",
+              riskLevel: "warn",
+              warningMessage: () => `Mark ${entity.Label || scan.id} as Removed?`,
+              execute: async () => {
+                await markFoodInstanceStatus(scan.id, "Removed");
+                goBack();
+                renderView();
+              }
+            },
+            {
+              label: "View",
+              riskLevel: "safe",
+              execute: () => { goBack(); showFoodInstance(scan.id); }
+            },
+            {
+              label: "Edit",
+              riskLevel: "safe",
+              execute: () => { goBack(); showFoodInstance(scan.id); enterEditMode(); }
+            }
+          ];
+        }
+
+        // unit item
         return [
           {
-            label: "Open Item",
-            scanMode: "navigate",
+            label: "Mark Consumed",
+            riskLevel: "warn",
+            warningMessage: () => `Mark ${entity.Label || scan.id} as Consumed?`,
+            execute: async () => {
+              await markFoodInstanceStatus(scan.id, "Consumed");
+              goBack();
+              renderView();
+            }
+          },
+          {
+            label: "Mark Discarded",
+            riskLevel: "warn",
+            warningMessage: () => `Mark ${entity.Label || scan.id} as Discarded?`,
+            execute: async () => {
+              await markFoodInstanceStatus(scan.id, "Discarded");
+              goBack();
+              renderView();
+            }
+          },
+          {
+            label: "Mark Removed",
+            riskLevel: "warn",
+            warningMessage: () => `Mark ${entity.Label || scan.id} as Removed?`,
+            execute: async () => {
+              await markFoodInstanceStatus(scan.id, "Removed");
+              goBack();
+              renderView();
+            }
+          },
+          {
+            label: "View",
             riskLevel: "safe",
-            execute: () => showFoodInstance(scan.id)
+            execute: () => { goBack(); showFoodInstance(scan.id); }
+          },
+          {
+            label: "Edit",
+            riskLevel: "safe",
+            execute: () => { goBack(); showFoodInstance(scan.id); enterEditMode(); }
           }
         ];
       }
@@ -175,6 +342,33 @@ const VIEW_CONFIG = {
             scanMode: "navigate",
             riskLevel: "safe",
             execute: () => showStorageLocation(scan.id)
+          }
+        ];
+      }
+
+      if (scan.type === "UPC") {
+        if (scan.resolved) {
+          return [
+            {
+              label: "Go to Item",
+              scanMode: "navigate",
+              riskLevel: "safe",
+              execute: () => routeUPCToFoodInstance(scan.product)
+            }
+          ];
+        }
+        return [
+          {
+            label: "Select Product",
+            scanMode: "navigate",
+            riskLevel: "safe",
+            execute: () => { goBack(); openProductSelector(); }
+          },
+          {
+            label: "Create Product",
+            scanMode: "navigate",
+            riskLevel: "safe",
+            execute: () => openCreateProduct({ source: "scan", barcode: scan.code })
           }
         ];
       }
@@ -236,8 +430,14 @@ const VIEW_CONFIG = {
           ];
         }
 
-        // Unknown UPC — offer to create a product and link the barcode
+        // Unknown UPC — offer to select or create a product
         return [
+          {
+            label: "Select Product",
+            scanMode: "navigate",
+            riskLevel: "safe",
+            execute: () => openProductSelector()
+          },
           {
             label: "Create Product",
             scanMode: "navigate",
@@ -432,6 +632,15 @@ const ENTITY_FIELDS = {
     { key: "Notes", label: "Notes", type: "text" },
     { key: "Size", label: "Size", type: "text" },
     { key: "Date", label: "Date", type: "text" },
+    {
+      key: "Status",
+      label: "Status",
+      type: "select",
+      options: (item) => item.Model === "inventory"
+        ? ["", "Removed"]
+        : ["", "Consumed", "Discarded", "Removed"],
+      displayValue: (value) => value || "Active"
+    },
     { key: "StorageLocationID", label: "Storage Location", type: "storage-select" }
   ],
 

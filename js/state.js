@@ -16,7 +16,8 @@ let inventoryFilter = {
   text: '',
   dateFrom: null,
   dateTo: null,
-  storageScope: "ALL"
+  storageScope: "ALL",
+  statusFilter: new Set([""])
 };
 let storageFilter = {
   text: ''

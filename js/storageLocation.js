@@ -6,6 +6,7 @@ function showStorage() {
   activeTab = 'storage';
   currentListEntity = "storage";
   currentView = "list-storage";
+  updateModeButton();
   renderView();
 }
 
@@ -63,9 +64,15 @@ function renderStorageList() {
   }
   
   const container = document.getElementById("content");
+  container.innerHTML = `
+    <div class="list-actions">
+      <button onclick="addStorageLocation()">\uFF0B</button>
+    </div>
+    <div id="storage-table-container"></div>
+  `;
 
   renderTable({
-    container,
+    container: document.getElementById("storage-table-container"),
     rows: working,
     getRowId: r => r.StorageLocationID,
     enableSelection: true,
@@ -83,14 +90,27 @@ function renderStorageList() {
 }
 
 
+function addStorageLocation() {
+  pushView();
+  currentView = "item-storage";
+  itemMode = "add";
+  currentItem = { StorageLocationID: "(new)", Label: "", PhysicalLocation: "", Notes: "" };
+  originalItem = {};
+  updateModeButton();
+  renderView();
+}
+
 
 function renderStorageDetail() {
+  const isAdd = itemMode === "add";
+  const isEditable = itemMode === "edit" || itemMode === "add";
+
   updateFilterVisibility();
 
   const item = currentItem;
 
   let html = `
-    <div class="card ${itemMode === "edit" ? "edit-mode" : "view-mode"}">
+    <div class="card ${isEditable ? "edit-mode" : "view-mode"}">
       <h2>${item.StorageLocationID}</h2>
 
       <div style="margin-top: 1rem;">
@@ -132,6 +152,18 @@ async function saveStorage() {
   Object.assign(currentItem, extractFields("item-storage"));
   currentItem = normalizeItem(currentItem);
 
+  if (itemMode === "add") {
+    const newItem = await createStorageLocation(currentItem);
+    window._storageLocationCache.push(newItem);
+    window._storageMap[newItem.StorageLocationID] = newItem;
+    currentItem = { ...newItem };
+    originalItem = newItem;
+    itemMode = "view";
+    updateModeButton();
+    renderView();
+    return;
+  }
+
   const changes = getChangedFields(originalItem, currentItem);
 
   if (!Object.keys(changes).length) {
@@ -143,7 +175,6 @@ async function saveStorage() {
     saveFunction: updateStorageLocation,
     id: currentItem.StorageLocationID,
     changes,
-
     updateCache: () => {
       Object.assign(originalItem, currentItem);
     }

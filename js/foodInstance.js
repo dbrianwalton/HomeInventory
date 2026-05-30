@@ -117,7 +117,13 @@ function renderFoodInstanceList() {
   // ----- STORAGE SCOPE FILTER ----
   if (inventoryFilter.storageScope === "UNASSIGNED") {
     working = working.filter(i => !i.StorageLocationID);
-  } 
+  }
+
+  // ---- STATUS FILTER ----
+  const statusFilter = inventoryFilter.statusFilter;
+  if (statusFilter && statusFilter.size > 0) {
+    working = working.filter(i => statusFilter.has(i.Status || ""));
+  }
 
   const sorted = [...working].sort((a, b) => {
     let at = a[inventorySort.field];
@@ -182,7 +188,7 @@ function renderFoodInstanceList() {
       },
       {
         label: "Status",
-        render: r => r.Status
+        render: r => r.Status || "Active"
       }
     ]
   });
@@ -262,18 +268,12 @@ function renderEventTable(instanceID) {
     return;
   }
 
-  // active only
   let working = events.filter(e => e.Active !== false);
-
-  // sort newest first
   working.sort((a, b) => b.Timestamp - a.Timestamp);
   const anchorIndex = working.findIndex(e => e.EventType === 'INVENTORY');
 
-  // apply default filter (only contributing events)
-  if (!showAllEvents) {
-    if (anchorIndex !== -1) {
-      working = working.slice(0, anchorIndex + 1);
-    }
+  if (!showAllEvents && anchorIndex !== -1) {
+    working = working.slice(0, anchorIndex + 1);
   }
 
   const html = `
@@ -288,22 +288,23 @@ function renderEventTable(instanceID) {
             <th>Type</th>
             <th>Qty</th>
             <th>Notes</th>
+            <th></th>
           </tr>
         </thead>
         <tbody>
         ${working.map((e, idx) => {
           const isHistorical =
             showAllEvents && anchorIndex !== -1 && idx > anchorIndex;
-
           return `
-            <tr class="${isHistorical ? 'event-historical' : 'event-current'}">
-                        <td>${new Date(e.Timestamp).toLocaleString() || ''}</td>
+            <tr data-event-id="${e.EventID}" class="${isHistorical ? 'event-historical' : 'event-current'}">
+              <td>${new Date(e.Timestamp).toLocaleString()}</td>
               <td>${e.EventType}</td>
-              <td>${e.Quantity}</td>
+              <td>${e.Quantity != null ? e.Quantity : ''}</td>
               <td>${e.Notes || ''}</td>
+              <td><button data-edit-event="${e.EventID}">\u270E</button></td>
             </tr>
-              `;
-            }).join('')}
+          `;
+        }).join('')}
         </tbody>
       </table>
     </div>
@@ -311,9 +312,45 @@ function renderEventTable(instanceID) {
 
   document.getElementById('event-table-container').innerHTML = html;
 
-  // bind toggle
   document.getElementById('toggleEventHistory').addEventListener('click', () => {
     showAllEvents = !showAllEvents;
+    renderEventTable(instanceID);
+  });
+
+  document.querySelectorAll('[data-edit-event]').forEach(btn => {
+    btn.addEventListener('click', () => openEventNoteEdit(btn.dataset.editEvent, instanceID));
+  });
+}
+
+function openEventNoteEdit(eventID, instanceID) {
+  const ev = window._foodInstanceEventCache.find(e => e.EventID === eventID);
+  if (!ev) return;
+
+  const row = document.querySelector(`tr[data-event-id="${eventID}"]`);
+  if (!row) return;
+
+  row.innerHTML = `
+    <td colspan="5">
+      <div style="display:flex;gap:0.5rem;align-items:flex-start;padding:0.25rem 0;">
+        <textarea id="edit-notes-${eventID}" rows="2" style="flex:1;">${ev.Notes || ""}</textarea>
+        <button data-save-event="${eventID}">Save</button>
+        <button data-cancel-event="${eventID}">Cancel</button>
+      </div>
+    </td>
+  `;
+
+  document.querySelector(`[data-save-event="${eventID}"]`).addEventListener('click', async () => {
+    const notes = document.getElementById(`edit-notes-${eventID}`).value;
+    try {
+      await updateFoodInstanceEvent(eventID, { Notes: notes });
+      renderEventTable(instanceID);
+    } catch (err) {
+      console.error(err);
+      alert("Error saving notes");
+    }
+  });
+
+  document.querySelector(`[data-cancel-event="${eventID}"]`).addEventListener('click', () => {
     renderEventTable(instanceID);
   });
 }
@@ -331,6 +368,22 @@ function addFoodInstance() {
   currentItem = createEmptyFoodInstance();
   originalItem = null;
 
+  clearDirty();
+  updateModeButton();
+  renderView();
+}
+
+function addFoodInstanceForProduct(productID) {
+  pushView();
+  currentView = "item-food";
+  itemMode = "add";
+  currentItem = createEmptyFoodInstance();
+  currentItem.ProductID = productID;
+  const product = productMap[productID];
+  if (product && !currentItem.Label) {
+    currentItem.Label = product.Label;
+  }
+  originalItem = null;
   clearDirty();
   updateModeButton();
   renderView();
@@ -416,11 +469,30 @@ async function saveFoodInstance(mode = "close") {
   Object.assign(currentItem, extractFields("item-food"));
   currentItem = normalizeItem(currentItem);
 
-  const changes = getChangedFields(originalItem, currentItem);
+const changes = getChangedFields(originalItem, currentItem);
 
   if (!Object.keys(changes).length) {
     alert("No changes to save");
     return;
+  }
+
+  // Auto-create lifecycle event if Status changed
+  if ("Status" in changes) {
+    const statusEventMap = {
+      "Consumed": "CONSUMED",
+      "Discarded": "DISCARDED",
+      "Removed": "REMOVED",
+      "": "RETURNED"
+    };
+    const eventType = statusEventMap[changes.Status];
+    if (eventType) {
+      await createFoodInstanceEvent({
+        InstanceID: currentItem.InstanceID,
+        EventType: eventType,
+        Quantity: 0,
+        CreatedBy: currentUserID || ""
+      });
+    }
   }
 
   await performSave({
@@ -442,6 +514,27 @@ async function saveFoodInstance(mode = "close") {
   exitToListView();
 }
 
+
+async function markFoodInstanceStatus(instanceID, status) {
+  const statusEventMap = {
+    "Consumed": "CONSUMED",
+    "Discarded": "DISCARDED",
+    "Removed": "REMOVED",
+    "": "RETURNED"
+  };
+  const eventType = statusEventMap[status];
+  if (eventType) {
+    await createFoodInstanceEvent({
+      InstanceID: instanceID,
+      EventType: eventType,
+      Quantity: 0,
+      CreatedBy: currentUserID || ""
+    });
+  }
+  await updateFoodInstance(instanceID, { Status: status });
+  const cached = (window._foodInstanceCache || []).find(i => i.InstanceID === instanceID);
+  if (cached) cached.Status = status;
+}
 
 
 /* ------- EVENT LIST (Events tab) -------- */

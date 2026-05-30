@@ -128,12 +128,37 @@ belong only in detail views (`item-food`, `item-storage`, `item-product`), not i
 
 | View | QR_FI | QR_SL | UPC resolved | UPC unresolved |
 |---|---|---|---|---|
-| `list-food` | Open Item | Open Storage Location | — | Create Product |
-| `item-food` | Open Item / Transfer (if both inventory) | Assign to Location | Assign Product (if unassigned) | Create Product |
-| `list-storage` | Open Item | Open Storage Location | — | — |
+| `list-food` | Action prompt (see below) | Open Storage Location | Route to FoodInstance (see below) | [Select Product \| Create Product] |
+| `item-food` | Open Item / Transfer (if both inventory) | Assign to Location | Assign Product (if unassigned) | [Select Product \| Create Product] |
+| `list-storage` | Action prompt (see below) | Open Storage Location | Route to FoodInstance (see below) | [Select Product \| Create Product] |
 | `item-storage` | Open Item | — | — | — |
 | `list-product` | — | — | — | — |
 | `item-product` | Assign this product to FoodInstance (see below) | — | Link UPC to this product (see below) | Link UPC to this product (new barcode) |
+
+**QR_FI scan from `list-food` or `list-storage` — action prompt by Model type:**
+
+- Unit item → `[Mark Consumed | Mark Discarded | Mark Removed | View | Edit]`
+- Inventory item → `[Add | Remove | Inventory | Mark Removed | View | Edit]`
+
+Status-change actions (`Mark Consumed`, `Mark Discarded`, `Mark Removed`) update
+`FoodInstance.Status` on the server, update the cache, and create the corresponding
+lifecycle event (`CONSUMED`, `DISCARDED`, or `REMOVED`) with `CreatedBy` = OAuth email
+and current timestamp. A `RETURNED` event is created (and Status cleared) when status is
+set back to Active via item edit.
+
+**UPC resolved scan from `list-food` or `list-storage` — route to FoodInstance:**
+
+1. Find all Active FoodInstances whose `ProductID` matches the scanned barcode's product.
+2. Exactly one match → navigate directly to that FoodInstance (same as QR_FI scan).
+3. Multiple matches → push entity-select view filtered to those instances.
+4. No Active matches → navigate to the Product item view.
+
+**UPC unresolved scan (no barcode record) from `list-food`, `list-storage`, or `item-food`:**
+
+Previously: Create Product only. Now: `[Select Product | Create Product]`
+- "Select Product" → entity-select pointing at `list-product`; on selection, navigates to
+  that Product's item view (where the user can link the barcode or find the FoodInstance).
+- "Create Product" → existing `openCreateProduct(context)` flow.
 
 **Scan from `item-product`:**
 
@@ -179,7 +204,7 @@ All data lives in named sheets in the user's Google Sheet.
 |---|---|---|
 | FoodInstances | InstanceID (FI-xxxxx) | Physical items or inventory containers |
 | StorageLocations | StorageLocationID (SL-xxxxx) | Where items are stored |
-| FoodInstanceEvents | EventID (EV-xxxxx) | ADD / REMOVE / INVENTORY events |
+| FoodInstanceEvents | EventID (EV-xxxxx) | ADD / REMOVE / INVENTORY / lifecycle events |
 | Products | ProductID (PR-xxxxx) | Abstract product types |
 | FoodBarcodes | BarcodeID (FB-xxxxx) | Barcode → Product mappings |
 | Counters | Key / Value | Auto-increment counters per entity type |
@@ -187,6 +212,34 @@ All data lives in named sheets in the user's Google Sheet.
 **FoodInstance.Model**: `"unit"` (a single item) or `"inventory"` (a quantity-tracked container).
 Inventory quantity is computed from events: find the most recent INVENTORY event as anchor,
 then sum ADD/REMOVE events after it.
+
+**FoodInstance.Status**: Tracks the lifecycle state of the instance.
+- Unit items: `""` (implicit Active) | `"Removed"` | `"Consumed"` | `"Discarded"`
+- Inventory items: `""` (implicit Active) | `"Removed"`
+- Empty string and "Active" are treated equivalently throughout the UI.
+- "Removed" means retired from inventory for both types — no restocking planned.
+- The `DateUsed` and `UsedBy` columns exist in the FoodInstances sheet but are **not used**;
+  lifecycle metadata is recorded on FoodInstanceEvents instead.
+
+**FoodInstanceEvents — event types:**
+
+| Type | Applies to | Meaning |
+|---|---|---|
+| `ADD` | inventory | Add quantity |
+| `REMOVE` | inventory | Remove quantity |
+| `INVENTORY` | inventory | Set anchor quantity |
+| `CONSUMED` | unit | Package used as intended |
+| `DISCARDED` | unit | Package thrown away (expired, damaged, etc.) |
+| `REMOVED` | both | Retired from inventory |
+| `RETURNED` | both | Status restored to Active |
+
+Lifecycle events (`CONSUMED`, `DISCARDED`, `REMOVED`, `RETURNED`) are auto-created when
+`Status` changes during an edit save. The `CreatedBy` field on the event records the user's
+OAuth email address. The `Notes` field is available on all event types and is the designated
+place for quality feedback, trip notes, processing observations, etc.
+
+Event editing exposes **only the `Notes` field** — `CreatedBy`, `EventType`, and timestamp
+are read-only on existing events.
 
 **Relationships:**
 - FoodInstance →(optional FK)→ Product
@@ -279,6 +332,70 @@ for current scale.
 - `startTransfer(source, target)` — lower priority, stubbed
 - `list-event` / `item-event` — stub shown; awaits ProductionEvents implementation
 - ProductionEvents + PreparedFood data model and UI (see roadmap below)
+
+### Working (added session 2026-05-29)
+- FoodInstance.Status field with model-conditional options (unit: Consumed/Discarded/Removed; inventory: Removed)
+- Lifecycle events (CONSUMED, DISCARDED, REMOVED, RETURNED) auto-created on Status change in edit save
+- `CreatedBy` on events populated from Google OAuth userinfo (`profile email` scope); stores display name
+- `updateFoodInstanceEvent` API function for patching event records
+- Inline Notes editing on event table rows (edit icon → textarea → save/cancel)
+- Status filter on list-food: defaults to Active-only; per-status toggles in expanded filter panel
+- QR_FI scan from list-food / list-storage: action prompt with model-appropriate actions
+- UPC resolved scan from list-food / list-storage: routes to matching Active FoodInstance(s), or Product view if none
+- UPC unresolved scan: [Select Product | Create Product] in list-food, list-storage, and item-food
+- `openProductSelector()` — entity-select for products with custom onSelect navigation callback
+- `routeUPCToFoodInstance()` — routes resolved UPC to single instance, multi-select, or product view
+- `markFoodInstanceStatus()` — combined event creation + instance update + cache sync
+- "Add Food Instance" button on item-product view (always visible in view mode)
+- `addFoodInstanceForProduct(productID)` — navigates to new item-food pre-populated with ProductID and Label
+- "+" button on list-storage → `addStorageLocation()` → item-storage in add mode (parallel to addFoodInstance)
+- "+" button on list-product → `addProduct()` → item-product in add mode (parallel to addFoodInstance)
+- `createStorageLocation()` added to api.js; `loadStorageLocations()` now populates `window._storageLocationHeaders`
+- All three detail renderers (`renderFoodInstanceDetail`, `renderStorageDetail`, `renderProductDetail`) unified on `isEditable` flag for card class (`edit-mode` vs `view-mode`), covering view / edit / add modes consistently
+
+### FoodInstance Status and Lifecycle Events — Planned (session 2026-05-29)
+
+**Status: implemented (session 2026-05-29)**
+
+#### Status field
+`Status` column already exists in FoodInstances sheet. Values: `""` (Active) | `"Removed"` |
+`"Consumed"` (unit only) | `"Discarded"` (unit only).
+
+In `ENTITY_FIELDS`, `Status` is a `select` field with options conditional on `item.Model`:
+- unit: `["", "Consumed", "Discarded", "Removed"]`
+- inventory: `["", "Removed"]`
+
+Display label for `""` is "Active".
+
+#### Status change triggers event creation
+In `saveFoodInstance()` (edit mode): if `Status` changed, auto-call `createFoodInstanceEvent`
+with the appropriate type before (or alongside) the instance update. Do not prompt — just
+create it silently with current timestamp and OAuth email as `CreatedBy`.
+
+Status → Event type mapping:
+- `"Consumed"` → `CONSUMED`
+- `"Discarded"` → `DISCARDED`
+- `"Removed"` → `REMOVED`
+- `""` (from non-Active) → `RETURNED`
+
+#### List filter changes
+Add per-status toggle chips to the `list-food` filter bar. Default: only Active shown.
+Filter state: `inventoryFilter.statusFilter` — a Set of Status values considered visible
+(empty string = Active). Default is `new Set([""])`.
+
+#### Quick actions from list scan
+See updated Per-View Scan Behavior table above.
+
+#### Event Notes editing
+In the events sub-table on `item-food` (view mode), each event row has an edit icon.
+Tapping it opens a minimal inline form with only the `Notes` textarea. Save calls
+`updateFoodInstanceEvent(eventId, { Notes })`. `CreatedBy`, `EventType`, and timestamp
+are read-only.
+
+#### Product view "Add Food Instance"
+`item-product` view mode always shows an "Add Food Instance" button (not gated on instance
+count). Tapping it navigates to a new `item-food` form pre-populated with `ProductID` set
+to the current product.
 
 ### Scanner UX — Debounce + Canvas Overlay
 
@@ -381,13 +498,13 @@ ProcessingEvent (one per batch run)
 Details are saved in a separate file. Request if needed.
 ---
 
-### Known Tech Debt
+### Known Tech Debt (updated 2026-05-29)
 - `updateFoodInstance` / `updateStorageLocation` / `updateProduct` / `updateFoodBarcode`
   all re-fetch sheet on every save (could use cached row index)
 - Some prefix coupling outside the ID layer
-- `renderFilterUI` references `config.filters?.label` but the key is just `config.label`
-  (minor bug in filter label display)
 - `activeTab` state variable is written but never read — vestigial from old nav design
+- `currentUserID` variable stores display name (falls back to email)
+- `renderFilterUI` references `config.filters?.label` but the key is just `config.label` (minor bug in filter label display)
 
 ---
 

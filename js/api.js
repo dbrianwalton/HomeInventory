@@ -2,11 +2,13 @@
 const appID = "BTM-Inventory";
 
 const CLIENT_ID = "364484300168-cjutfpntqunv3sv7ailg2nv51v8581kj.apps.googleusercontent.com";
-const SCOPES = "https://www.googleapis.com/auth/spreadsheets";
+const SCOPES = "https://www.googleapis.com/auth/spreadsheets profile email";
 
 /* ---------- STATE ---------- */
 
 let accessToken = null;
+let currentUserID = null;
+let currentUserEmail = null;
 
 window._foodInstanceCache = null;
 window._storageLocationCache = null;
@@ -25,6 +27,12 @@ async function initAuth() {
         // If token came back
         if (response.access_token) {
           accessToken = response.access_token;
+          fetch("https://www.googleapis.com/oauth2/v1/userinfo?alt=json", {
+            headers: { Authorization: `Bearer ${accessToken}` }
+          })
+            .then(r => r.json())
+            .then(info => { currentUserID = info.name || info.email || null; })
+            .catch(() => {});
           resolve();
         } else {
           console.warn("Token missing — retrying with consent");
@@ -176,11 +184,11 @@ async function loadInventory() {
     return;
   }
 
-  // ✅ Extract headers
+  // Extract headers
   const headers = rows[0];
   window._foodInstanceHeaders = headers;
 
-  // ✅ Convert remaining rows
+  // Convert remaining rows
   const dataRows = rows.slice(1);
   window._foodInstanceCache = rowsToObjects([headers, ...dataRows]);
 }
@@ -188,7 +196,22 @@ async function loadInventory() {
 
 async function loadStorageLocations() {
   if (window._storageLocationCache) return;
-  window._storageLocationCache = await sheetFetch("StorageLocations!A1:Z");
+
+  const rows = await sheetFetchRaw("StorageLocations!A1:Z");
+
+  if (!rows.length) {
+    window._storageLocationHeaders = [];
+    window._storageLocationCache = [];
+    return;
+  }
+
+  // Extract headers
+  const headers = rows[0];
+  window._storageLocationHeaders = headers;
+
+  // Convert remaining rows
+  const dataRows = rows.slice(1);
+  window._storageLocationCache = rowsToObjects([headers, ...dataRows]);
 
   window._storageMap = {};
   window._storageLocationCache.forEach(s => {
@@ -368,6 +391,31 @@ async function appendFoodInstanceRow(item) {
   await appendRowToSheet("FoodInstances", row);
 }
 
+
+async function createStorageLocation(item) {
+  const headers = window._storageLocationHeaders;
+
+  if (!headers?.length) {
+    throw new Error("StorageLocation headers not loaded — cannot create item");
+  }
+
+  const newID = await getNextID("StorageLocation");
+
+  const base = {};
+  headers.forEach(h => { base[h] = item[h] ?? ""; });
+
+  const newItem = {
+    ...base,
+    StorageLocationID: newID
+  };
+
+  const row = headers.map(h => newItem[h] ?? "");
+  await appendRowToSheet("StorageLocations", row);
+
+  return newItem;
+}
+
+
 async function createFoodInstanceEvent(event) {
   const headers = window._foodInstanceEventHeaders;
 
@@ -401,6 +449,54 @@ async function createFoodInstanceEvent(event) {
 
   return fullEvent;
 }
+
+async function updateFoodInstanceEvent(eventID, changes) {
+  const rows = await sheetFetch("FoodInstanceEvents!A1:Z");
+
+  const index = rows.findIndex(r => r.EventID === eventID);
+  if (index === -1) {
+    throw new Error("Event not found");
+  }
+
+  const headers = Object.keys(rows[0]);
+  const row = rows[index];
+
+  Object.entries(changes).forEach(([key, value]) => {
+    row[key] = value;
+  });
+
+  const values = headers.map(h => row[h] ?? "");
+  const rowNumber = index + 2;
+
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${getSheetId()}/values/FoodInstanceEvents!A${rowNumber}:Z${rowNumber}?valueInputOption=USER_ENTERED`;
+
+  const res = await fetch(url, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ values: [values] })
+  });
+
+  if (!res.ok) {
+    const errorText = await res.text();
+    throw new Error(`HTTP ${res.status}: ${errorText}`);
+  }
+
+  // Update caches
+  const cached = window._foodInstanceEventCache.find(e => e.EventID === eventID);
+  if (cached) {
+    Object.assign(cached, changes);
+  }
+  if (foodInstanceEventMap[row.InstanceID]) {
+    const mapEntry = foodInstanceEventMap[row.InstanceID].find(e => e.EventID === eventID);
+    if (mapEntry) Object.assign(mapEntry, changes);
+  }
+
+  return res.json();
+}
+
 
 async function appendFoodInstanceEventRow(event) {
   const headers = window._foodInstanceEventHeaders;
