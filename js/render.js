@@ -65,10 +65,23 @@ function renderTable({
   onRowClick,
   enableSelection = false
 }) {
+  const totalGrow = columns.reduce((sum, c) => sum + (c.maxWidth ? 0 : (c.grow || 0)), 0);
+
+  const colStyles = columns.map(c => {
+    const parts = [];
+    if (c.minWidth) parts.push(`min-width:${c.minWidth}`);
+    if (c.maxWidth) parts.push(`max-width:${c.maxWidth}; width:${c.maxWidth}`);
+    else if (c.grow && totalGrow > 0) parts.push(`width:${Math.round(c.grow / totalGrow * 100)}%`);
+    return parts.length ? `style="${parts.join(';')}"` : '';
+  });
+
   const html = `
     <div class="card">
       <div class="table-wrapper">
         <table class="inventory-table">
+          <colgroup>
+            ${columns.map((c, idx) => `<col ${colStyles[idx]}>`).join('\n            ')}
+          </colgroup>
           <thead>
             <tr>
               ${columns.map((c,idx) => `

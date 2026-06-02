@@ -594,13 +594,44 @@ body.select-mode .inventory-table tbody tr {
 #scanner-panel {
   position: fixed;
   top: 20px;
-  right: 20px;
-  width: 280px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 340px;
   background: white;
   border: 1px solid #ccc;
   padding: 10px;
   border-radius: 8px;
   z-index: 1000;
+}
+
+@media (max-width: 600px) {
+  #scanner-panel {
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 75vw;
+  }
+}
+
+.scanner-input-row {
+  display: flex;
+  gap: 0.4rem;
+  margin-top: 0.5rem;
+}
+
+.scanner-input-row input {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.85rem;
+  padding: 0.25rem 0.4rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.scanner-input-row button {
+  font-size: 0.85rem;
+  padding: 0.25rem 0.6rem;
+  white-space: nowrap;
 }
 
 .scanner-video-wrapper {

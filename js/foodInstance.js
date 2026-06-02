@@ -175,18 +175,26 @@ function renderFoodInstanceList() {
       {
         label: "Date",
         field: "Date",
+        minWidth: "5rem",
+        maxWidth: "7rem",
         render: r => r.Date || ''
       },
       {
         label: "ID",
+        field: "InstanceID",
+        minWidth: "8rem",
+        maxWidth: "8rem",
         render: r => r.InstanceID
       },
       {
         label: "Description",
+        minWidth: "8rem",
+        grow: 2,
         render: r => r.Label
       },
       {
         label: "Qty",
+        maxWidth: "4rem",
         render: r => {
           if (r.Model !== "inventory") return "";
           const state = computeInventoryState(r.InstanceID);
@@ -195,11 +203,14 @@ function renderFoodInstanceList() {
       },
       {
         label: "Storage",
+        minWidth: "8rem",
+        grow: 2,
         render: r => window._storageMap?.[r.StorageLocationID]?.Label || '',
         field: "StorageLocationID"
       },
       {
         label: "Status",
+        maxWidth: "6rem",
         render: r => r.Status || "Active"
       }
     ]

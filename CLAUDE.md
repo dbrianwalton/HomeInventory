@@ -405,6 +405,11 @@ for current scale.
 ### Working (added session 2026-05-31)
 - Batch assign mode on item-storage (see Batch Assign to Storage Location section)
 
+### Working (added session 2026-06-01)
+- Scanner panel moved to fixed centered position (top-center on desktop, screen-center on mobile); barcode text input moved inside scanner panel
+- list-food table supports sorting by InstanceID column header (single-column sort; clicking a column header sets sort field and toggles direction; arrow indicator follows active sort column)
+- renderTable supports optional `minWidth`, `maxWidth`, and `grow` on column definitions; emits a `<colgroup>`/`<col>` block so widths apply to entire columns. `grow` is a relative integer weight converted to a proportional `width` percentage among uncapped columns. All three properties are optional. list-food column definitions include initial width hints (tunable).
+
 ### Missing / Stubbed (as of session 2026-05-28)
 - `startTransfer(source, target)` — lower priority, stubbed
 - `list-event` / `item-event` — stub shown; awaits ProductionEvents implementation
