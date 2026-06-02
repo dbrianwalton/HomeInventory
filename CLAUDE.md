@@ -131,7 +131,7 @@ belong only in detail views (`item-food`, `item-storage`, `item-product`), not i
 | `list-food` | Action prompt (see below) | Open Storage Location | Route to FoodInstance (see below) | [Select Product \| Create Product] |
 | `item-food` | Open Item / Transfer (if both inventory) | Assign to Location | Assign Product (if unassigned) | [Select Product \| Create Product] |
 | `list-storage` | Action prompt (see below) | Open Storage Location | Route to FoodInstance (see below) | [Select Product \| Create Product] |
-| `item-storage` | Open Item | — | — | — |
+| `item-storage` | Open Item (view mode) / Assign to location (assign mode) | — | Assign to location (assign mode, see below) | Toast + reopen camera (assign mode) |
 | `list-product` | — | — | — | — |
 | `item-product` | Assign this product to FoodInstance (see below) | — | Link UPC to this product (see below) | Link UPC to this product (new barcode) |
 
@@ -173,6 +173,80 @@ Previously: Create Product only. Now: `[Select Product | Create Product]`
 
 *UPC scan (unresolved — no barcode record exists):*
 - `confirm("Link barcode [code] to [ProductName]?")` → on confirm, `createFoodBarcode` + cache update. Stay on item-product.
+
+### Batch Assign to Storage Location (item-storage assign mode)
+
+**Status: planned (session 2026-05-31)**
+
+`item-storage` gains a fourth `itemMode` value: `"assign"`. This mode lets the user
+scan multiple FoodInstance QR codes or barcodes in sequence, assigning each to the
+current StorageLocation without leaving the view.
+
+#### Entry / Exit
+
+- **Enter:** "Assign Items" button visible in view mode on `item-storage`. Sets
+  `itemMode = "assign"`, opens camera, calls `renderView()`. A banner is shown:
+  "Scan items to assign to this location — [Stop]".
+- **Exit (Cancel from overlay):** clears `pendingAssignment`, hides overlay,
+  sets `itemMode = "view"`, calls `renderView()`.
+- **Exit (Stop button):** same as Cancel from overlay — sets `itemMode = "view"`,
+  calls `renderView()`.
+
+#### State
+
+`pendingAssignment` — transient object in `state.js`, set when a scan resolves to a
+single FoodInstance and cleared after confirm or cancel:
+```js
+{ instanceID, instanceLabel }
+```
+Default: `null`.
+
+#### Scan Routing in Assign Mode
+
+| Scan type | Condition | Behavior |
+|---|---|---|
+| QR_FI | — | Set `pendingAssignment`, show assign overlay |
+| UPC resolved | 1 active FoodInstance for product | Set `pendingAssignment`, show assign overlay |
+| UPC resolved | Multiple active FoodInstances | Push entity-select (with current location column); on selection set `pendingAssignment`, show overlay |
+| UPC resolved | 0 active FoodInstances | Toast "No active items for [Product]", reopen camera |
+| UPC unresolved | — | Toast "Unknown barcode", reopen camera |
+| QR_SL | — | Toast "That's a storage location", reopen camera |
+| QR_UNKNOWN | — | Reopen camera silently |
+
+#### Entity-Select for Multiple Matches
+
+Uses the existing entity-select view pushed onto navStack. The list displays each
+matching FoodInstance with a `Location` column showing the resolved `StorageLocationID`
+label (or "—" if unassigned). Instances already assigned to the current location show
+"← here" in that column but remain selectable.
+
+The custom `onSelect` callback (stored in `currentItem._assignContext`):
+1. Sets `pendingAssignment = { instanceID, instanceLabel }`
+2. Calls `goBack()` — returns to `item-storage` in assign mode
+3. Shows the assign overlay
+
+#### Assign Overlay
+
+An inline overlay div (parallel to the event modal) rendered over the storage item view.
+Shows: "Assign **[FI Label]** to **[SL Label]**?" with **Confirm** and **Cancel** buttons.
+
+- **Confirm:** `updateFoodInstance(instanceID, { StorageLocationID })`, update
+  `_foodInstanceCache` entry + `_storageMap` if needed, toast "Assigned", clear
+  `pendingAssignment`, hide overlay, reopen camera. Stay in assign mode.
+- **Cancel:** clear `pendingAssignment`, hide overlay, set `itemMode = "view"`,
+  call `renderView()`.
+
+#### Implementation Locations
+
+- `state.js` — add `let pendingAssignment = null;`
+- `storageLocation.js` — add `startAssignMode()`, `exitAssignMode()`,
+  `showAssignOverlay()`, `hideAssignOverlay()`, `confirmAssignment()`,
+  `cancelAssignment()`, `openAssignEntitySelect(instances)`; update
+  `renderStorageDetail()` to render assign-mode banner and "Assign Items" button
+- `config.js` — update `item-storage` onScan to branch on `itemMode === "assign"`
+  and route per the table above instead of "Open Item"
+- `index.html` — add `#assignOverlay` div (parallel to event modal)
+- `btm-inventory.css` — style assign-mode banner if not already covered by modal styles
 
 ### Product Creation Flow
 
@@ -327,6 +401,9 @@ for current scale.
 - Filter bar (text, date range, storage scope), filter chips; product list has text filter
 - Select mode with drag-to-select, label printing from selection
 - PWA manifest (installable)
+
+### Working (added session 2026-05-31)
+- Batch assign mode on item-storage (see Batch Assign to Storage Location section)
 
 ### Missing / Stubbed (as of session 2026-05-28)
 - `startTransfer(source, target)` — lower priority, stubbed
@@ -498,7 +575,49 @@ ProcessingEvent (one per batch run)
 Details are saved in a separate file. Request if needed.
 ---
 
-### Known Tech Debt (updated 2026-05-29)
+### list-food Location Filter + Count Display (implemented 2026-06-01)
+
+#### Storage scope filter — third option
+`inventoryFilter.storageScope` gains a third value: `"LOCATION"` (existing: `"ALL"` | `"UNASSIGNED"`).
+`inventoryFilter.storageScopeID` (new field, default `null`) holds the selected StorageLocationID.
+
+The `<select id="storageScopeFilter">` in `buildFilterExpansionPanel()` (filters.js) gets a third `<option value="LOCATION">Specific Location</option>`.
+
+When the user picks "Specific Location", the `change` handler (filters.js) calls `openLocationScopeSelector()` (filters.js) instead of writing to `inventoryFilter` directly. `openLocationScopeSelector` pushes an entity-select view over `list-storage` with a custom `onSelect` callback that:
+1. Sets `inventoryFilter.storageScope = "LOCATION"` and `inventoryFilter.storageScopeID = selectedID`
+2. Calls `goBack()` + `renderView()` to return to `list-food`
+
+The storage scope filter block in `renderFoodInstanceList()` (foodInstance.js) adds:
+```js
+} else if (inventoryFilter.storageScope === "LOCATION" && inventoryFilter.storageScopeID) {
+  working = working.filter(i => i.StorageLocationID === inventoryFilter.storageScopeID);
+}
+```
+
+`clearStorageScope()` (filters.js) also resets `inventoryFilter.storageScopeID = null`.
+
+A filter chip for the active location is rendered via the existing chip system in VIEW_CONFIG
+(config.js). The chip `getValue()` returns the location label when scope is `"LOCATION"`, null otherwise. `onClear` calls `clearStorageScope()`.
+
+The `<select>` must reflect the current scope on re-render: add `"LOCATION"` selected state alongside the existing `"UNASSIGNED"` check.
+
+#### Selected item count
+`updateSelectionUI()` (render.js) bug: sets `countEl.style.display = ''` when showing, which lets the CSS `display: none` rule win. Fix: use `'block'` instead of `''`.
+
+#### Filtered item count
+After building the filtered+sorted list in `renderFoodInstanceList()`, render a count string into an element near the filter bar. Implementation: add `<div id="filteredCount"></div>` to `index.html` (inside `#status-controls` or alongside it), and write `"N items"` (or `"N of M"` when a filter is active) from `renderFoodInstanceList()` after computing `sorted`.
+
+#### Implementation locations
+- `js/state.js` — add `storageScopeID: null` to `inventoryFilter`
+- `js/filters.js` — add LOCATION option to select; update change handler; add `openLocationScopeSelector()`; update `clearStorageScope()` to reset `storageScopeID`
+- `js/foodInstance.js` — add LOCATION branch to storage scope filter; write filtered count to `#filteredCount`
+- `js/config.js` — add/update storage scope chip getValue/onClear
+- `js/render.js` — fix `updateSelectionUI` display bug
+- `index.html` — add `#filteredCount` element
+
+---
+
+### Known Tech Debt (updated 2026-06-01)
 - `updateFoodInstance` / `updateStorageLocation` / `updateProduct` / `updateFoodBarcode`
   all re-fetch sheet on every save (could use cached row index)
 - Some prefix coupling outside the ID layer
@@ -513,6 +632,8 @@ Details are saved in a separate file. Request if needed.
 - **Multi-machine workflow:** Use git (main branch) to sync code. No local test server
   for OAuth — test via GitHub Pages deploy.
 - **No build step:** Plain JS, no bundler. Edit files directly.
+- **Cache busting:** `index.html` loads all JS files with `?v=YYYY-MM-DD` query strings.
+  Update the date on every deploy so Android PWA and browser caches pick up changes.
 - **Testing:** Manual only currently.
 - **CSS:** Single file `btm-inventory.css`. No framework.
 - **Unicode characters in JS:** Always use `\uXXXX` escape sequences (or `\u{XXXXX}` for

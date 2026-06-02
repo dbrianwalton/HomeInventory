@@ -77,12 +77,21 @@ const VIEW_CONFIG = {
         },
         {
           getValue: () => {
-            return inventoryFilter.storageScope === "UNASSIGNED"
-              ? "UNASSIGNED"
-              : null;
+            if (inventoryFilter.storageScope === "UNASSIGNED") return "UNASSIGNED";
+            if (inventoryFilter.storageScope === "LOCATION" && inventoryFilter.storageScopeID) {
+              return inventoryFilter.storageScopeID;
+            }
+            return null;
           },
 
-          label: () => "Unassigned",
+          label: () => {
+            if (inventoryFilter.storageScope === "UNASSIGNED") return "Unassigned";
+            if (inventoryFilter.storageScope === "LOCATION" && inventoryFilter.storageScopeID) {
+              const loc = window._storageMap && window._storageMap[inventoryFilter.storageScopeID];
+              return loc ? (loc.Label + ` (${inventoryFilter.storageScopeID})`) : inventoryFilter.storageScopeID;
+            }
+            return "";
+          },
           onClear: clearStorageScope
         }
       ]
@@ -460,6 +469,54 @@ const VIEW_CONFIG = {
     render: renderStorageDetail,
 
     onScan: ({ scan }) => {
+      // ── Assign mode ─────────────────────────────────────────────
+      if (itemMode === "assign") {
+        if (scan.type === "QR_FI") {
+          const inst = scan.entity;
+          if (!inst) { startScanner(); return []; }
+          pendingAssignment = { instanceID: scan.id, instanceLabel: inst.Label || scan.id };
+          showAssignOverlay(pendingAssignment);
+          return [];
+        }
+
+        if (scan.type === "UPC") {
+          if (!scan.resolved) {
+            showStatus("Unknown barcode");
+            startScanner();
+            return [];
+          }
+          const product = scan.product;
+          const matches = (window._foodInstanceCache || [])
+            .filter(i => i.ProductID === product.ProductID && (!i.Status || i.Status === "Active"));
+
+          if (matches.length === 0) {
+            showStatus(`No active items for ${product.Label || product.ProductID}`);
+            startScanner();
+            return [];
+          }
+          if (matches.length === 1) {
+            const inst = matches[0];
+            pendingAssignment = { instanceID: inst.InstanceID, instanceLabel: inst.Label || inst.InstanceID };
+            showAssignOverlay(pendingAssignment);
+            return [];
+          }
+          // multiple matches — entity-select
+          openAssignEntitySelect(matches);
+          return [];
+        }
+
+        if (scan.type === "QR_SL") {
+          showStatus("That\u2019s a storage location");
+          startScanner();
+          return [];
+        }
+
+        // QR_UNKNOWN or anything else
+        startScanner();
+        return [];
+      }
+
+      // ── Normal view mode ─────────────────────────────────────────
       if (scan.type === "QR_FI") {
         return [
           {
@@ -474,6 +531,7 @@ const VIEW_CONFIG = {
       return [];
     }
   },
+
 
   "item-product": {
     type: "detail",
@@ -670,6 +728,10 @@ const DETAIL_ACTIONS = {
     { action: "save-close", label: "Save & Close" },
     { action: "save-add", label: "Save & Add New" },
     { action: "cancel", label: "Cancel" }
+  ],
+
+  assign: [
+    { action: "close", label: "Close" }
   ]
 };
 

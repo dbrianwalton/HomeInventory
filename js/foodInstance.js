@@ -114,10 +114,14 @@ function renderFoodInstanceList() {
     });
   }
 
+
   // ----- STORAGE SCOPE FILTER ----
   if (inventoryFilter.storageScope === "UNASSIGNED") {
     working = working.filter(i => !i.StorageLocationID);
+  } else if (inventoryFilter.storageScope === "LOCATION" && inventoryFilter.storageScopeID) {
+    working = working.filter(i => i.StorageLocationID === inventoryFilter.storageScopeID);
   }
+
 
   // ---- STATUS FILTER ----
   const statusFilter = inventoryFilter.statusFilter;
@@ -139,6 +143,14 @@ function renderFoodInstanceList() {
     return 0;
   });
 
+  const total = window._foodInstanceCache ? window._foodInstanceCache.length : 0;
+  const filteredCountEl = document.getElementById('filteredCount');
+  if (filteredCountEl) {
+    const isFiltered = inventoryFilter.text || inventoryFilter.dateFrom || inventoryFilter.dateTo
+      || inventoryFilter.storageScope !== "ALL"
+      || !inventoryFilter.statusFilter.has("") || inventoryFilter.statusFilter.size !== 1;
+    filteredCountEl.textContent = isFiltered ? `${sorted.length} of ${total} items` : `${sorted.length} items`;
+  }
   
   const content = document.getElementById('content');
 

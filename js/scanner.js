@@ -237,3 +237,11 @@ function stopScanner() {
   qrScanner = null;
   document.getElementById('scanner-panel').style.display = 'none';
 }
+
+
+function handleScannerClose() {
+  stopScanner();
+  if (currentView === "item-storage" && itemMode === "assign") {
+    exitAssignMode();
+  }
+}

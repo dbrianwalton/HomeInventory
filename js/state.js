@@ -11,12 +11,14 @@ let activeTab = "inventory";
 let currentListEntity = "food"; // "food" | "storage" | "product" | "event"
 
 let navStack = [];
+let pendingAssignment = null;
 
 let inventoryFilter = {
   text: '',
   dateFrom: null,
   dateTo: null,
   storageScope: "ALL",
+  storageScopeID: null,
   statusFilter: new Set([""])
 };
 let storageFilter = {

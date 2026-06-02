@@ -584,9 +584,10 @@ function updatePreviousViewItem(updater) {
 
 function showStatus(contentHtml = "") {
   const status = document.getElementById('status');
+  const statusMsg = document.getElementById('status-message');
 
   if (contentHtml) {
-    status.innerHTML = contentHtml;
+    statusMsg.innerHTML = contentHtml;
   }
 
   status.style.display = '';
@@ -594,14 +595,17 @@ function showStatus(contentHtml = "") {
 }
 
 function hideStatus() {
-  const status = document.getElementById('status');
-
-  status.innerHTML = '';
-  status.style.display = 'none';
+  const msg = document.getElementById('status-message');
+  if (msg) msg.innerHTML = '';
 
   statusVisible = false;
-}
 
+  const viewConfig = VIEW_CONFIG[currentView];
+  if (!viewConfig || !viewConfig.filters) {
+    const status = document.getElementById('status');
+    if (status) status.style.display = 'none';
+  }
+}
 
 function showProducts() {
   navStack = [];
@@ -1012,7 +1016,7 @@ function updateSelectionUI() {
   if (countEl) {
     const show = interactionMode === "select";
     countEl.textContent = show ? `${selectedItems.size}` : '';
-    countEl.style.display = show ? '' : 'none';
+    countEl.style.display = show ? 'block' : 'none';
   }
 }
 
@@ -1302,6 +1306,8 @@ function bindDetailEvents() {
         case "save-close":
           if (currentView === "item-product") {
             saveProduct();
+          } else if (currentView === "item-storage") {
+            saveStorage();
           } else {
             saveFoodInstance("close");
           }
@@ -1310,6 +1316,8 @@ function bindDetailEvents() {
         case "save-add":
           if (currentView === "item-product") {
             saveProduct();
+          } else if (currentView === "item-storage") {
+            saveStorage();
           } else {
             saveFoodInstance("addAnother");
           }

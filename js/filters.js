@@ -11,8 +11,8 @@ function updateFilterVisibility() {
   if (!viewConfig || !viewConfig.filters) {
 
     // Clear any stale UI
-    controls.innerHTML = '';
-    chips.innerHTML = '';
+    if (controls) controls.innerHTML = '';
+    if (chips) chips.innerHTML = '';
 
     // Only show if explicitly enabled (e.g. status message)
     status.style.display = statusVisible ? '' : 'none';
@@ -78,11 +78,12 @@ function buildFilterExpansionPanel(config) {
 
         <select id="storageScopeFilter" class="filter-select-compact">
           <option value="ALL">All</option>
+          <option value="LOCATION" ${
+            storageScope === "LOCATION" ? "selected" : ""
+          }>Specific Location</option>
           <option value="UNASSIGNED" ${
             storageScope === "UNASSIGNED" ? "selected" : ""
-          }>
-            Unassigned
-          </option>
+          }>Unassigned</option>
         </select>
 
       </div>
@@ -222,12 +223,17 @@ function bindFilterEvents() {
   if (from) from.addEventListener('change', applyDateFilter);
   if (to) to.addEventListener('change', applyDateFilter);
 
-const storageSel = document.getElementById("storageScopeFilter");
+  const storageSel = document.getElementById("storageScopeFilter");
 
   if (storageSel) {
     storageSel.addEventListener("change", () => {
-      inventoryFilter.storageScope = storageSel.value;
-      applyFiltersAndRefresh();
+      if (storageSel.value === "LOCATION") {
+        openLocationScopeSelector();
+      } else {
+        inventoryFilter.storageScope = storageSel.value;
+        inventoryFilter.storageScopeID = null;
+        applyFiltersAndRefresh();
+      }
     });
   }
 
@@ -306,6 +312,7 @@ function clearDateInputs() {
 
 function clearStorageScope() {
   inventoryFilter.storageScope = "ALL";
+  inventoryFilter.storageScopeID = null;
   const storageSel = document.getElementById("storageScopeFilter");
   if (storageSel) {
     storageSel.value = "ALL";
@@ -313,3 +320,27 @@ function clearStorageScope() {
 
   applyFiltersAndRefresh();
 }
+
+
+function openLocationScopeSelector() {
+  pushView();
+  currentView = "entity-select";
+  currentItem = {
+    _selectField: "_storageScopeLocation",
+    _selectConfig: {
+      label: "Storage Location",
+      getOptions: () => window._storageLocationCache || [],
+      getLabel: loc => loc.Label + (loc.PhysicalLocation ? ` (${loc.PhysicalLocation})` : ""),
+      getId: loc => loc.StorageLocationID,
+      onSelect: (selectedID) => {
+        inventoryFilter.storageScope = "LOCATION";
+        inventoryFilter.storageScopeID = selectedID;
+        goBack();
+        renderView();
+      }
+    }
+  };
+  selectorSearchTerm = "";
+  renderView();
+}
+
