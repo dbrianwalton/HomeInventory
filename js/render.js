@@ -415,7 +415,12 @@ async function saveProduct() {
       await createFoodBarcode({ Code: context.barcode, ProductID: newProduct.ProductID });
     }
 
-    if (context.currentItem) {
+    if (context.source === "item-food-form") {
+      // FoodInstance form (add or edit) — patch the navStack item only;
+      // the FoodInstance save will write ProductID to the server.
+      updatePreviousViewItem(prev => { prev.ProductID = newProduct.ProductID; });
+    } else if (context.currentItem) {
+      // Scan-originated flow — FoodInstance already saved, update server now.
       await updateFoodInstance(context.currentItem.InstanceID, { ProductID: newProduct.ProductID });
       const cached = window._foodInstanceCache.find(i => i.InstanceID === context.currentItem.InstanceID);
       if (cached) cached.ProductID = newProduct.ProductID;
@@ -445,6 +450,8 @@ function renderEntitySelector() {
 
       <h2>Select ${field.label}</h2>
 
+      ${field.headerAction ? `<div style="margin-bottom: 0.5rem;"><button id="selectorHeaderAction">${field.headerAction.label}</button></div>` : ''}
+
       <input 
         id="selectorSearch" 
         placeholder="Search..." 
@@ -454,11 +461,17 @@ function renderEntitySelector() {
       <div id="selectorList"></div>
     </div>
   `;
-  
+
   document.getElementById("selectorBack").addEventListener("click", () => {
     goBack();
     renderView();
   });
+
+  if (field.headerAction) {
+    document.getElementById("selectorHeaderAction").addEventListener("click", () => {
+      field.headerAction.action();
+    });
+  }
 
   const input = document.getElementById("selectorSearch");
 
@@ -591,6 +604,25 @@ function updatePreviousViewItem(updater) {
   }
 }
 
+
+function showModal({ title, bodyHTML, buttons }) {
+  document.getElementById('appModalTitle').textContent = title;
+  document.getElementById('appModalBody').innerHTML = bodyHTML;
+  const btnRow = document.getElementById('appModalButtons');
+  btnRow.innerHTML = '';
+  buttons.forEach(({ label, className, action }) => {
+    const btn = document.createElement('button');
+    btn.textContent = label;
+    if (className) btn.className = className;
+    btn.onclick = action;
+    btnRow.appendChild(btn);
+  });
+  document.getElementById('appModal').style.display = '';
+}
+
+function hideModal() {
+  document.getElementById('appModal').style.display = 'none';
+}
 
 /* ---------- NAVIGATION + UI ------------- */
 
@@ -1163,15 +1195,11 @@ function renderField(field, item, readOnly) {
         : (value || "(none)");
 
     if (readOnly) {
-      return `<div>${display}</div>`;
+      if (field.viewHTML) return field.viewHTML(item, value);
+      return `<div class="entity-select-value">${display}</div>`;
     }
 
-    return `
-      <div>
-        <span>${display}</span>
-        <button data-select-field="${field.key}">Change</button>
-      </div>
-    `;
+    return `<button class="entity-select-btn" data-select-field="${field.key}">${display}</button>`;
   }
 
   // Default text

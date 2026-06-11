@@ -129,10 +129,10 @@ belong only in detail views (`item-food`, `item-storage`, `item-product`), not i
 | View | QR_FI | QR_SL | UPC resolved | UPC unresolved |
 |---|---|---|---|---|
 | `list-food` | Action prompt (see below) | Open Storage Location | Route to FoodInstance (see below) | [Select Product \| Create Product] |
-| `item-food` | Open Item / Transfer (if both inventory) | Assign to Location | Assign Product (if unassigned) | [Select Product \| Create Product] |
+| `item-food` | Open Item / Transfer (if both inventory) | Assign to Location | Assign Product (if no product) / Link barcode to product (if product assigned, see below) | Link barcode to product (if product assigned) / [Select Product \| Create Product] (if no product) |
 | `list-storage` | Action prompt (see below) | Open Storage Location | Route to FoodInstance (see below) | [Select Product \| Create Product] |
 | `item-storage` | Open Item (view mode) / Assign to location (assign mode) | — | Assign to location (assign mode, see below) | Toast + reopen camera (assign mode) |
-| `list-product` | — | — | — | — |
+| `list-product` | Action prompt (see below) | Open Storage Location | Route to FoodInstance (see below) | [Select Product \| Create Product] |
 | `item-product` | Assign this product to FoodInstance (see below) | — | Link UPC to this product (see below) | Link UPC to this product (new barcode) |
 
 **QR_FI scan from `list-food` or `list-storage` — action prompt by Model type:**
@@ -153,12 +153,39 @@ set back to Active via item edit.
 3. Multiple matches → push entity-select view filtered to those instances.
 4. No Active matches → navigate to the Product item view.
 
-**UPC unresolved scan (no barcode record) from `list-food`, `list-storage`, or `item-food`:**
+**UPC unresolved scan (no barcode record) from `list-food` or `list-storage`:**
 
-Previously: Create Product only. Now: `[Select Product | Create Product]`
+`[Select Product | Create Product]`
 - "Select Product" → entity-select pointing at `list-product`; on selection, navigates to
   that Product's item view (where the user can link the barcode or find the FoodInstance).
 - "Create Product" → existing `openCreateProduct(context)` flow.
+
+**UPC scan from `item-food` — branching on product assignment:**
+
+*No product assigned:*
+- UPC resolved → assign product to FoodInstance (existing behavior)
+- UPC unresolved → `[Select Product | Create Product]` (existing behavior)
+
+*Product already assigned:*
+- UPC resolved, barcode maps to same product → toast "Already linked to [ProductName]"
+- UPC resolved, barcode maps to different product → `confirm("Barcode [code] is linked to [OtherProduct]. Link to [ThisProduct] instead?")` → on confirm, `updateFoodBarcode` + cache update. Stay on item-food.
+- UPC unresolved → `confirm("Link barcode [code] to [ProductName]?")` → on confirm, `createFoodBarcode` + cache update. Stay on item-food.
+
+Handler: `linkBarcodeFromFoodInstance(scan, context)` in `js/foodInstance.js`.
+
+**QR_FI scan from `list-product` — action prompt by Model type:**
+
+Same behavior as `list-food` and `list-storage`:
+- Unit item → `[Mark Consumed | Mark Discarded | Mark Removed | View | Edit]`
+- Inventory item → `[Add | Remove | Inventory | Mark Removed | View | Edit]`
+
+**UPC resolved scan from `list-product` — route to FoodInstance:**
+
+Same behavior as `list-food` and `list-storage` (see above).
+
+**UPC unresolved scan from `list-product`:**
+
+`[Select Product | Create Product]` — same as list-food/list-storage.
 
 **Scan from `item-product`:**
 
@@ -173,6 +200,188 @@ Previously: Create Product only. Now: `[Select Product | Create Product]`
 
 *UPC scan (unresolved — no barcode record exists):*
 - `confirm("Link barcode [code] to [ProductName]?")` → on confirm, `createFoodBarcode` + cache update. Stay on item-product.
+
+### Generic Modal
+
+**Status: planned (session 2026-06-10)**
+
+A single reusable modal div in `index.html` replaces any feature-specific modal divs.
+All transient modal interrupts (initial quantity prompt, future confirmation dialogs, etc.)
+use this shared element rather than dedicated divs. The persistent `#assignOverlay` in
+item-storage remains separate because it is a mode overlay with ongoing state, not a
+transient interrupt.
+
+#### HTML (`index.html`)
+
+```html
+<div id="appModal" class="modal-overlay" style="display:none">
+  <div class="modal-box">
+    <div id="appModalTitle" class="modal-title"></div>
+    <div id="appModalBody" class="modal-body"></div>
+    <div id="appModalButtons" class="modal-buttons"></div>
+  </div>
+</div>
+```
+
+#### API (`js/render.js`)
+
+```js
+function showModal({ title, bodyHTML, buttons }) {
+  document.getElementById('appModalTitle').textContent = title;
+  document.getElementById('appModalBody').innerHTML = bodyHTML;
+  const btnRow = document.getElementById('appModalButtons');
+  btnRow.innerHTML = '';
+  buttons.forEach(({ label, className, action }) => {
+    const btn = document.createElement('button');
+    btn.textContent = label;
+    if (className) btn.className = className;
+    btn.onclick = action;
+    btnRow.appendChild(btn);
+  });
+  document.getElementById('appModal').style.display = '';
+}
+
+function hideModal() {
+  document.getElementById('appModal').style.display = 'none';
+}
+```
+
+#### Implementation locations
+
+- `index.html` — add `#appModal` div once
+- `js/render.js` — add `showModal()` and `hideModal()`
+- `btm-inventory.css` — add `.modal-overlay` and `.modal-box` styles if not covered
+
+---
+
+### Inventory FoodInstance Initial Quantity Modal
+
+**Status: planned (session 2026-06-10)**
+
+When `saveFoodInstance()` completes in **add mode** for an inventory-type FoodInstance
+(i.e. `itemMode === "add"` and `item.Model === "inventory"`), immediately show a modal
+before cycling to "Add New" or navigating away.
+
+#### Modal content
+
+Title: "Set initial quantity?"
+Body: single number input (type="number", min=0, step=1, placeholder="0")
+Buttons:
+- **Add** — creates an `INVENTORY` event with the entered quantity, then proceeds
+- **Skip** — proceeds without creating any event
+
+#### Event creation on "Add"
+
+Call `createFoodInstanceEvent` with:
+- `InstanceID`: the newly saved instance's ID
+- `EventType`: `"INVENTORY"`
+- `Quantity`: the entered value
+- `CreatedBy`: OAuth display name
+- `EventDate`: current timestamp
+
+Update `_foodInstanceEventCache` and `foodInstanceEventMap` after creation.
+
+#### Flow continuation after modal
+
+The modal fires after the Sheets API write succeeds and after cache is updated. After
+the user taps Add or Skip, the existing post-save flow continues normally (e.g. if the
+user was in "Save and Add New" mode, a fresh add form opens next).
+
+#### Implementation locations
+
+- `js/foodInstance.js` — detect inventory add in `saveFoodInstance()`, call
+  `showInitialQuantityModal(instanceID)` before post-save navigation
+- `index.html` — uses `#appModal` (see Generic Modal below); no dedicated div needed
+- `btm-inventory.css` — style if not covered by existing modal styles
+
+---
+
+### StorageLocation Field — Entity-Select Instead of Dropdown
+
+**Status: planned (session 2026-06-10)**
+
+The `StorageLocationID` field in `item-food` add/edit mode currently renders as a
+`<select>` dropdown populated from `_storageLocationCache`. Replace it with a tappable
+button-style field that opens an entity-select view.
+
+#### Field rendering
+
+In `ENTITY_FIELDS` for FoodInstance, change `StorageLocationID` from type `select` to
+a new type `entity-select` (or handled as a special case in `renderField`). The field
+renders as a read-only label (resolved location name or "None") inside a button/tap
+target. In add/edit mode the field is tappable; in view mode it is not.
+
+#### Tap behavior
+
+Tapping the field calls `openStorageLocationSelector(currentItem)` which:
+1. Calls `pushView()` to save current item-food state
+2. Sets `currentView = "entity-select"` with `currentItem` configured as:
+   - `_entityType = "StorageLocation"`
+   - `_listView = "list-storage"`
+   - `_onSelect = (location) => { updatePreviousViewItem(item => { item.StorageLocationID = location.StorageLocationID; }); goBack(); renderView(); }`
+   - `_title = "Select Location"`
+
+This is the same `updatePreviousViewItem` + `goBack()` + `renderView()` pattern used
+by other entity selectors. The selection is applied to the in-progress add/edit form
+without saving — the user must still tap Save.
+
+A "None / Clear" option should be available at the top of the entity-select list to
+explicitly unset the location.
+
+#### Implementation locations
+
+- `js/config.js` — update `StorageLocationID` field in `ENTITY_FIELDS["FoodInstance"]`
+  from `type: "select"` to `type: "entity-select"` (or equivalent marker)
+- `js/render.js` or `js/foodInstance.js` — add `openStorageLocationSelector()`;
+  update `renderField` to render entity-select fields as tappable buttons
+- `index.html` — no new HTML needed (uses existing entity-select view)
+
+---
+
+### Product Creation from item-food Add Mode
+
+**Status: planned (session 2026-06-10)**
+
+In addition to the existing UPC scan → Create Product flow, the user can initiate
+product creation directly from the item-food add form when the desired product is not
+in the list.
+
+#### Entry point
+
+In `item-food` add mode, the `ProductID` field renders as a tappable entity-select
+(see StorageLocation pattern above — ProductID should use the same `entity-select` type).
+The entity-select for ProductID shows `list-product` and includes a **"+ New Product"**
+action button at the top of the list.
+
+Tapping "+ New Product" calls `openCreateProductFromFoodInstance()` which:
+1. Stores `_createContext = { source: "item-food-add", currentItem: currentItem }` on a
+   temp object
+2. Navigates to `item-product` in add mode (sets `currentView = "item-product"`,
+   `itemMode = "add"`, `currentItem = { _createContext }`) — does NOT call `pushView()`
+   again because the entity-select already pushed the item-food state
+
+#### On save (`saveProduct()`)
+
+The existing `_createContext` logic already handles returning `ProductID` to the calling
+view via `updatePreviousViewItem`. No changes needed to `saveProduct()` itself — only
+the entry point is new.
+
+#### ProductID field change
+
+`ProductID` in `ENTITY_FIELDS["FoodInstance"]` changes from `type: "select"` to
+`type: "entity-select"`, consistent with `StorageLocationID`. The tappable field
+resolves the label from `productMap`.
+
+#### Implementation locations
+
+- `js/config.js` — update `ProductID` field in `ENTITY_FIELDS["FoodInstance"]`
+  from `type: "select"` to `type: "entity-select"`
+- `js/render.js` or `js/foodInstance.js` — add `openProductSelectorForFoodInstance()`;
+  wire "+ New Product" button in the entity-select list header
+- `js/render.js` — `renderField` handles `entity-select` type for both ProductID and
+  StorageLocationID, sharing the same tap-to-select rendering path
+
+---
 
 ### Batch Assign to Storage Location (item-storage assign mode)
 
@@ -250,7 +459,9 @@ Shows: "Assign **[FI Label]** to **[SL Label]**?" with **Confirm** and **Cancel*
 
 ### Product Creation Flow
 
-Entry points: unknown UPC scan from `list-food` or `item-food`. Selector "+ Create" deferred.
+Entry points:
+- Unknown UPC scan from `list-food`, `list-storage`, `list-product`, or `item-food` (no product assigned)
+- "+ New Product" button in ProductID entity-select from `item-food` add mode (see Product Creation from item-food Add Mode)
 
 `openCreateProduct(context)` is called while in `action-prompt` view. Because
 `showActionPrompt` already called `pushView()` to save the calling view (item-food or
@@ -409,6 +620,14 @@ for current scale.
 - Scanner panel moved to fixed centered position (top-center on desktop, screen-center on mobile); barcode text input moved inside scanner panel
 - list-food table supports sorting by InstanceID column header (single-column sort; clicking a column header sets sort field and toggles direction; arrow indicator follows active sort column)
 - renderTable supports optional `minWidth`, `maxWidth`, and `grow` on column definitions; emits a `<colgroup>`/`<col>` block so widths apply to entire columns. `grow` is a relative integer weight converted to a proportional `width` percentage among uncapped columns. All three properties are optional. list-food column definitions include initial width hints (tunable).
+
+### Planned (session 2026-06-10)
+- **Generic modal**: Single `#appModal` div + `showModal()`/`hideModal()` in render.js for all transient modal interrupts. See Generic Modal section.
+- **Initial quantity modal for inventory FoodInstance**: After saving a new inventory-type FoodInstance in add mode, show a modal via `showModal()` ("Set initial quantity?" with number input + Add/Skip buttons) that creates an INVENTORY event before continuing. See Inventory FoodInstance Initial Quantity Modal section.
+- **StorageLocation field → entity-select**: Replace the StorageLocation dropdown in item-food add/edit with a tappable button that opens entity-select over list-storage. Uses `updatePreviousViewItem` pattern. See StorageLocation Field section.
+- **ProductID field → entity-select**: Replace the ProductID dropdown in item-food add/edit with a tappable button that opens entity-select over list-product, with a "+ New Product" button at the top. See Product Creation from item-food Add Mode section.
+- **UPC scan from item-food when product assigned**: Resolved barcode → toast if same product / warn-reassign if different product. Unresolved barcode → confirm link to assigned product. Handler: `linkBarcodeFromFoodInstance()` in foodInstance.js.
+- **list-product scan behavior**: Add `onScan` to list-product in VIEW_CONFIG mirroring list-food: QR_FI → action prompt, QR_SL → open location, UPC resolved → route to FoodInstances or product, UPC unresolved → [Select Product | Create Product].
 
 ### Missing / Stubbed (as of session 2026-05-28)
 - `startTransfer(source, target)` — lower priority, stubbed

@@ -198,6 +198,25 @@ function openCreateProduct(context) {
   renderView();
 }
 
+
+// Called from the "+ New Product" button in the ProductID entity-select when the user
+// is in item-food add or edit mode. openEntitySelector() already pushed the item-food
+// state onto navStack, so we do NOT pushView again. goBack() from item-product will
+// return directly to item-food.
+function openCreateProductFromFoodInstance() {
+  currentView = "item-product";
+  itemMode = "add";
+  currentItem = {
+    Label: "",
+    Size: "",
+    _createContext: { source: "item-food-form" }
+  };
+  originalItem = null;
+  clearDirty();
+  updateModeButton();
+  renderView();
+}
+
 /* ---------- PHASE 3 STUB ---------- */
 
 // Transfers inventory quantity from sourceItem to targetItem.

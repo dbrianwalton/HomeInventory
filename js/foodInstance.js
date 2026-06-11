@@ -457,33 +457,41 @@ async function saveFoodInstance(mode = "close") {
     currentItem = created;
     window._foodInstanceCache.push(created);
 
-    if (mode === "addAnother") {
-      const previous = { ...currentItem };
+    const continueAfterSave = () => {
+      if (mode === "addAnother") {
+        const previous = { ...currentItem };
 
-      currentItem = createEmptyFoodInstance();
+        currentItem = createEmptyFoodInstance();
 
-      // prefill logic later (Step 6.5)
-      itemMode = "add";
-      clearDirty();
-      renderView();
+        // prefill logic later (Step 6.5)
+        itemMode = "add";
+        clearDirty();
+        renderView();
 
-      setTimeout(
-        () => {
-          Object.assign(currentItem, previous);
-          renderView();
-        }, 500);
-      setTimeout(
-        () => {
-          document.querySelector(".card")?.classList.add("new-item-flash");
+        setTimeout(
+          () => {
+            Object.assign(currentItem, previous);
+            renderView();
+          }, 500);
+        setTimeout(
+          () => {
+            document.querySelector(".card")?.classList.add("new-item-flash");
 
-          setTimeout(
-            () => {
-              document.querySelector(".card")?.classList.remove("new-item-flash");
-            }, 1000);
-        }, 0);
+            setTimeout(
+              () => {
+                document.querySelector(".card")?.classList.remove("new-item-flash");
+              }, 1000);
+          }, 0);
+      } else {
+        resetEditState();
+        showInventory();
+      }
+    };
+
+    if (created.Model === "inventory") {
+      showInitialQuantityModal(created.InstanceID, continueAfterSave);
     } else {
-      resetEditState();
-      showInventory();
+      continueAfterSave();
     }
 
     return;
@@ -492,7 +500,7 @@ async function saveFoodInstance(mode = "close") {
   Object.assign(currentItem, extractFields("item-food"));
   currentItem = normalizeItem(currentItem);
 
-const changes = getChangedFields(originalItem, currentItem);
+  const changes = getChangedFields(originalItem, currentItem);
 
   if (!Object.keys(changes).length) {
     alert("No changes to save");
@@ -535,6 +543,96 @@ const changes = getChangedFields(originalItem, currentItem);
 
   resetEditState();
   exitToListView();
+}
+
+function showInitialQuantityModal(instanceID, onContinue) {
+  showModal({
+    title: "Set initial quantity?",
+    bodyHTML: `<input type="number" id="modalQtyInput" min="0" step="1" placeholder="0">`,
+    buttons: [
+      {
+        label: "Skip",
+        action: () => {
+          hideModal();
+          onContinue();
+        }
+      },
+      {
+        label: "Add",
+        className: "btn-primary",
+        action: async () => {
+          const qty = parseInt(document.getElementById("modalQtyInput").value, 10) || 0;
+          try {
+            await createFoodInstanceEvent({
+              InstanceID: instanceID,
+              EventType: "INVENTORY",
+              Quantity: qty,
+              CreatedBy: currentUserID || ""
+            });
+          } catch (err) {
+            console.error("Error creating initial inventory event:", err);
+            alert("Error saving initial quantity");
+            return;
+          }
+          hideModal();
+          onContinue();
+        }
+      }
+    ]
+  });
+}
+
+// Called from item-food onScan when the FoodInstance already has a product assigned.
+// Handles both resolved and unresolved UPC scans by linking/reassigning barcodes
+// to the current product, rather than assigning a product to the instance.
+async function linkBarcodeFromFoodInstance(scan, context) {
+  const item = context.currentItem;
+  const product = productMap[item.ProductID];
+  const productName = product ? formatProductLabel(product) : item.ProductID;
+
+  if (scan.resolved) {
+    const scannedProduct = scan.product;
+
+    if (scannedProduct.ProductID === item.ProductID) {
+      showStatus(`Already linked to ${productName}`);
+      return;
+    }
+
+    // Barcode maps to a different product — offer to reassign
+    const otherName = formatProductLabel(scannedProduct);
+    const ok = confirm(`Barcode ${scan.code} is linked to ${otherName}. Link to ${productName} instead?`);
+    if (!ok) return;
+
+    const existing = (window._barcodeCache || []).find(
+      b => b.ProductID === scannedProduct.ProductID &&
+           normalizeBarcode(b.Code) === normalizeBarcode(scan.code)
+    );
+    if (!existing) return;
+
+    try {
+      await updateFoodBarcode(existing.BarcodeID, { ProductID: item.ProductID });
+      existing.ProductID = item.ProductID;
+      barcodeProductMap[normalizeBarcode(scan.code)] = item.ProductID;
+      showStatus("Barcode reassigned");
+    } catch (err) {
+      console.error(err);
+      alert("Error reassigning barcode");
+    }
+
+  } else {
+    // Unresolved barcode — offer to link to this product
+    const ok = confirm(`Link barcode ${scan.code} to ${productName}?`);
+    if (!ok) return;
+
+    try {
+      await createFoodBarcode({ Code: scan.code, ProductID: item.ProductID });
+      barcodeProductMap[normalizeBarcode(scan.code)] = item.ProductID;
+      showStatus("Barcode linked");
+    } catch (err) {
+      console.error(err);
+      alert("Error linking barcode");
+    }
+  }
 }
 
 

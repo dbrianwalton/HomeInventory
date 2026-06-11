@@ -426,20 +426,27 @@ const VIEW_CONFIG = {
       }
 
       if (scan.type === "UPC") {
-        if (scan.resolved) {
-          return [
-            {
-              label: "Assign Product",
-              scanMode: "navigate",
-              condition: () => !currentItem.ProductID,
-              riskLevel: "warn",
-              warningMessage: () => "Assign this product?",
-              execute: () => assignProduct(currentItem, scan.product)
-            }
-          ];
+        // Product already assigned — link/reassign the barcode to this product
+        if (currentItem.ProductID) {
+          return [{
+            label: "Link Barcode",
+            riskLevel: "safe",
+            execute: () => linkBarcodeFromFoodInstance(scan, { currentItem })
+          }];
         }
 
-        // Unknown UPC — offer to select or create a product
+        // No product assigned — assign the product to this instance
+        if (scan.resolved) {
+          return [{
+            label: "Assign Product",
+            scanMode: "navigate",
+            riskLevel: "warn",
+            warningMessage: () => "Assign this product?",
+            execute: () => assignProduct(currentItem, scan.product)
+          }];
+        }
+
+        // Unknown UPC, no product assigned — offer to select or create
         return [
           {
             label: "Select Product",
@@ -600,6 +607,137 @@ const VIEW_CONFIG = {
           }
         }
       ]
+    },
+
+    onScan: ({ scan }) => {
+      if (scan.type === "QR_FI") {
+        const entity = scan.entity;
+        if (!entity) return [];
+
+        if (entity.Model === "inventory") {
+          return [
+            {
+              label: "Add",
+              riskLevel: "safe",
+              execute: () => { goBack(); showFoodInstance(scan.id); openEventModal("ADD"); }
+            },
+            {
+              label: "Remove",
+              riskLevel: "safe",
+              execute: () => { goBack(); showFoodInstance(scan.id); openEventModal("REMOVE"); }
+            },
+            {
+              label: "Inventory Count",
+              riskLevel: "safe",
+              execute: () => { goBack(); showFoodInstance(scan.id); openEventModal("INVENTORY"); }
+            },
+            {
+              label: "Mark Removed",
+              riskLevel: "warn",
+              warningMessage: () => `Mark ${entity.Label || scan.id} as Removed?`,
+              execute: async () => {
+                await markFoodInstanceStatus(scan.id, "Removed");
+                goBack();
+                renderView();
+              }
+            },
+            {
+              label: "View",
+              riskLevel: "safe",
+              execute: () => { goBack(); showFoodInstance(scan.id); }
+            },
+            {
+              label: "Edit",
+              riskLevel: "safe",
+              execute: () => { goBack(); showFoodInstance(scan.id); enterEditMode(); }
+            }
+          ];
+        }
+
+        // unit item
+        return [
+          {
+            label: "Mark Consumed",
+            riskLevel: "warn",
+            warningMessage: () => `Mark ${entity.Label || scan.id} as Consumed?`,
+            execute: async () => {
+              await markFoodInstanceStatus(scan.id, "Consumed");
+              goBack();
+              renderView();
+            }
+          },
+          {
+            label: "Mark Discarded",
+            riskLevel: "warn",
+            warningMessage: () => `Mark ${entity.Label || scan.id} as Discarded?`,
+            execute: async () => {
+              await markFoodInstanceStatus(scan.id, "Discarded");
+              goBack();
+              renderView();
+            }
+          },
+          {
+            label: "Mark Removed",
+            riskLevel: "warn",
+            warningMessage: () => `Mark ${entity.Label || scan.id} as Removed?`,
+            execute: async () => {
+              await markFoodInstanceStatus(scan.id, "Removed");
+              goBack();
+              renderView();
+            }
+          },
+          {
+            label: "View",
+            riskLevel: "safe",
+            execute: () => { goBack(); showFoodInstance(scan.id); }
+          },
+          {
+            label: "Edit",
+            riskLevel: "safe",
+            execute: () => { goBack(); showFoodInstance(scan.id); enterEditMode(); }
+          }
+        ];
+      }
+
+      if (scan.type === "QR_SL") {
+        return [
+          {
+            label: "Open Storage Location",
+            scanMode: "navigate",
+            riskLevel: "safe",
+            execute: () => showStorageLocation(scan.id)
+          }
+        ];
+      }
+
+      if (scan.type === "UPC") {
+        if (scan.resolved) {
+          return [
+            {
+              label: "Go to Item",
+              scanMode: "navigate",
+              riskLevel: "safe",
+              execute: () => routeUPCToFoodInstance(scan.product)
+            }
+          ];
+        }
+        return [
+          {
+            label: "Select Product",
+            scanMode: "navigate",
+            riskLevel: "safe",
+            execute: () => { goBack(); openProductSelector(); }
+          },
+          {
+            label: "Create Product",
+            scanMode: "navigate",
+            riskLevel: "safe",
+            execute: () => openCreateProduct({ source: "scan", barcode: scan.code })
+          }
+        ];
+      }
+
+      return [];
     }
   },
 
@@ -684,6 +822,10 @@ const ENTITY_FIELDS = {
       getId: (entityItem) => entityItem.ProductID,
       getSearchText: e => {
         return `${e.Label} ${e.Size || ""}`.toLowerCase();
+      },
+      headerAction: {
+        label: "+ New Product",
+        action: () => openCreateProductFromFoodInstance()
       }
     },
     { key: "Keywords", label: "Keywords", type: "text" },
@@ -699,7 +841,28 @@ const ENTITY_FIELDS = {
         : ["", "Consumed", "Discarded", "Removed"],
       displayValue: (value) => value || "Active"
     },
-    { key: "StorageLocationID", label: "Storage Location", type: "storage-select" }
+    {
+      key: "StorageLocationID",
+      label: "Storage Location",
+      type: "entity-select",
+      getOptions: () => [
+        { StorageLocationID: '', _isNone: true },
+        ...(window._storageLocationCache || [])
+      ],
+      getDisplay: (item, value) => {
+        if (!value) return 'None';
+        const s = window._storageMap?.[value];
+        return s ? formatStorageLabel(s) : '(unknown)';
+      },
+      getLabel: (loc) => loc._isNone ? 'None / Clear' : formatStorageLabel(loc),
+      getId: (loc) => loc.StorageLocationID,
+      getSearchText: (loc) => loc._isNone ? '' : (loc.Label || '').toLowerCase(),
+      viewHTML: (item, value) => {
+        if (!value) return `<div class="entity-select-value">None</div>`;
+        const s = window._storageMap?.[value];
+        return `<button data-storage-link="${value}">${formatStorageLabel(s)}</button>`;
+      }
+    }
   ],
 
   "item-storage": [
