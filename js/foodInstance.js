@@ -415,7 +415,7 @@ function addFoodInstanceForProduct(productID) {
 function createEmptyFoodInstance() {
   return {
     Model: "unit",
-    Category: "",
+    Category: localStorage.getItem('lastFoodCategory') || "",
     Label: "",
     Keywords: "",
     Notes: "",
@@ -456,6 +456,7 @@ async function saveFoodInstance(mode = "close") {
     const created = await createFoodInstance(currentItem);
     currentItem = created;
     window._foodInstanceCache.push(created);
+    localStorage.setItem('lastFoodCategory', created.Category || '');
 
     const continueAfterSave = () => {
       if (mode === "addAnother") {
@@ -470,7 +471,8 @@ async function saveFoodInstance(mode = "close") {
 
         setTimeout(
           () => {
-            Object.assign(currentItem, previous);
+            const { InstanceID: _omitID, Status: _omitStatus, ...fieldsToCarry } = previous;
+            Object.assign(currentItem, fieldsToCarry);
             renderView();
           }, 500);
         setTimeout(

@@ -203,7 +203,7 @@ Same behavior as `list-food` and `list-storage` (see above).
 
 ### Generic Modal
 
-**Status: planned (session 2026-06-10)**
+**Status: implemented (session 2026-06-10)**
 
 A single reusable modal div in `index.html` replaces any feature-specific modal divs.
 All transient modal interrupts (initial quantity prompt, future confirmation dialogs, etc.)
@@ -256,7 +256,7 @@ function hideModal() {
 
 ### Inventory FoodInstance Initial Quantity Modal
 
-**Status: planned (session 2026-06-10)**
+**Status: implemented (session 2026-06-10)**
 
 When `saveFoodInstance()` completes in **add mode** for an inventory-type FoodInstance
 (i.e. `itemMode === "add"` and `item.Model === "inventory"`), immediately show a modal
@@ -298,7 +298,7 @@ user was in "Save and Add New" mode, a fresh add form opens next).
 
 ### StorageLocation Field — Entity-Select Instead of Dropdown
 
-**Status: planned (session 2026-06-10)**
+**Status: implemented (session 2026-06-10)**
 
 The `StorageLocationID` field in `item-food` add/edit mode currently renders as a
 `<select>` dropdown populated from `_storageLocationCache`. Replace it with a tappable
@@ -340,7 +340,7 @@ explicitly unset the location.
 
 ### Product Creation from item-food Add Mode
 
-**Status: planned (session 2026-06-10)**
+**Status: implemented (session 2026-06-10)**
 
 In addition to the existing UPC scan → Create Product flow, the user can initiate
 product creation directly from the item-food add form when the desired product is not
@@ -621,13 +621,17 @@ for current scale.
 - list-food table supports sorting by InstanceID column header (single-column sort; clicking a column header sets sort field and toggles direction; arrow indicator follows active sort column)
 - renderTable supports optional `minWidth`, `maxWidth`, and `grow` on column definitions; emits a `<colgroup>`/`<col>` block so widths apply to entire columns. `grow` is a relative integer weight converted to a proportional `width` percentage among uncapped columns. All three properties are optional. list-food column definitions include initial width hints (tunable).
 
-### Planned (session 2026-06-10)
-- **Generic modal**: Single `#appModal` div + `showModal()`/`hideModal()` in render.js for all transient modal interrupts. See Generic Modal section.
-- **Initial quantity modal for inventory FoodInstance**: After saving a new inventory-type FoodInstance in add mode, show a modal via `showModal()` ("Set initial quantity?" with number input + Add/Skip buttons) that creates an INVENTORY event before continuing. See Inventory FoodInstance Initial Quantity Modal section.
-- **StorageLocation field → entity-select**: Replace the StorageLocation dropdown in item-food add/edit with a tappable button that opens entity-select over list-storage. Uses `updatePreviousViewItem` pattern. See StorageLocation Field section.
-- **ProductID field → entity-select**: Replace the ProductID dropdown in item-food add/edit with a tappable button that opens entity-select over list-product, with a "+ New Product" button at the top. See Product Creation from item-food Add Mode section.
+### Working (added session 2026-06-10)
+- **Generic modal**: Single `#appModal` div + `showModal()`/`hideModal()` in render.js for all transient modal interrupts.
+- **Initial quantity modal for inventory FoodInstance**: After saving a new inventory-type FoodInstance in add mode, modal prompts for initial quantity; "Add" creates an INVENTORY event, "Skip" continues without one. `showInitialQuantityModal()` in foodInstance.js.
+- **StorageLocation field → entity-select**: StorageLocation in item-food add/edit is now a tappable button opening entity-select over list-storage. "None / Clear" option at top. View mode still navigates to the location. `viewHTML` callback on field config preserves `data-storage-link` behavior.
+- **ProductID field → entity-select**: ProductID in item-food add/edit is a tappable button opening entity-select over list-product, with a "+ New Product" button at the top. `openCreateProductFromFoodInstance()` in app.js; `source: "item-food-form"` branch in `saveProduct()` patches navStack without a server write (FoodInstance save handles that).
 - **UPC scan from item-food when product assigned**: Resolved barcode → toast if same product / warn-reassign if different product. Unresolved barcode → confirm link to assigned product. Handler: `linkBarcodeFromFoodInstance()` in foodInstance.js.
-- **list-product scan behavior**: Add `onScan` to list-product in VIEW_CONFIG mirroring list-food: QR_FI → action prompt, QR_SL → open location, UPC resolved → route to FoodInstances or product, UPC unresolved → [Select Product | Create Product].
+- **list-product scan behavior**: `onScan` added to list-product in VIEW_CONFIG mirroring list-food/list-storage: QR_FI → action prompt, QR_SL → open location, UPC resolved → route to FoodInstances or product, UPC unresolved → [Select Product | Create Product].
+
+### Working (added session 2026-06-11)
+- **Last-used Category default**: On successful add-mode save of a FoodInstance, the Category value is written to `localStorage` key `lastFoodCategory`. `createEmptyFoodInstance()` reads this key and uses it as the default `Category` for all new item forms. This persists across sessions and applies to both fresh Add and "Save & Add New" entry points.
+- **Save-and-Add-New inventory count bug fix**: `saveFoodInstance()` in addAnother mode was doing `Object.assign(currentItem, previous)` where `previous` included the just-saved item's `InstanceID` and `Status`. The new empty item then rendered with the old InstanceID, causing `computeInventoryState` to show the previous item's event-derived count in the header. Fix: destructure `InstanceID` and `Status` out of `previous` before the assign — all other fields still carry over.
 
 ### Missing / Stubbed (as of session 2026-05-28)
 - `startTransfer(source, target)` — lower priority, stubbed
